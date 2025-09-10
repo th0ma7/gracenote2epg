@@ -93,34 +93,33 @@ class ConfigDisplayer:
         print(f"   postalCode={clean_postal}")
         print()
 
-        # Validation URLs
-        print(f"✅ VALIDATION URLs (manual verification):")
-        print(f"   Auto-generated: {lineup_config['tvtv_url']}")
-
-        if debug_mode:
-            print(
-                f"   Note: OTA format is {lineup_config['tvtv_lineup_id']} "
-                f"(country + OTA + postal, no -DEFAULT suffix)"
-            )
-            print(f"   Cable/Satellite providers use different format: {country}-[ProviderID]-X")
-
-        print(f"   Manual lookup:")
-        if country == "CAN":
-            print(f"     1. Go to https://www.tvtv.ca/")
-            print(f"     2. Enter postal code: {clean_postal}")
-            print(
-                f"     3a. For OTA: Click 'Broadcast' → 'Local Over the Air' → "
-                f"URL shows lu{lineup_config['tvtv_lineup_id']}"
-            )
-            print(f"     3b. For Cable/Sat: Select provider → URL shows lu{country}-[ProviderID]-X")
+        # Validation URLs - SIMPLIFIED AND CONSISTENT
+        print(f"✅ VALIDATION URLs:")
+        
+        # Check if location was resolved automatically
+        if lineup_config.get('location_source') == 'auto_resolved':
+            print(f"   Direct URL: {lineup_config['tvtv_url']}")
+            print(f"   Status: ✅ Location automatically resolved ({lineup_config.get('resolved_city')}, {lineup_config.get('resolved_province')})")
         else:
-            print(f"     1. Go to https://www.tvtv.us/")
-            print(f"     2. Enter ZIP code: {clean_postal}")
-            print(
-                f"     3a. For OTA: Click 'Broadcast' → 'Local Over the Air' → "
-                f"URL shows lu{lineup_config['tvtv_lineup_id']}"
-            )
-            print(f"     3b. For Cable/Sat: Select provider → URL shows lu{country}-[ProviderID]-X")
+            print(f"   Status: ⚠️  {lineup_config.get('manual_lookup_message', 'Unable to automatically resolve location')}")
+            print(f"   Manual lookup required:")
+
+        # Always show manual lookup steps
+        try:
+            validation_urls = self.lineup_manager.generate_validation_urls(clean_postal, country)
+            for instruction in validation_urls["instructions"]:
+                print(f"     {instruction}")
+        except Exception as e:
+            # Fallback manual instructions
+            if country == "CAN":
+                print(f"     1. Go to https://www.tvtv.ca/")
+                print(f"     2. Enter postal code: {clean_postal}")
+            else:
+                print(f"     1. Go to https://www.tvtv.us/")
+                print(f"     2. Enter ZIP code: {clean_postal}")
+            print(f"     3. Click 'Broadcast' → 'Local Over the Air'")
+            print(f"     4. Look for 'lu{lineup_config['tvtv_lineup_id']}' in the URL")
+
         print()
 
         # API test URL
