@@ -28,7 +28,7 @@ pip install gracenote2epg[full]
 pip install gracenote2epg
 
 # Alternative: Install from GitHub
-pip install "gracenote2epg[full] @ git+https://github.com/th0ma7/gracenote2epg.git@v1.5.5"
+pip install "gracenote2epg[full] @ git+https://github.com/th0ma7/gracenote2epg.git@v1.6.0"
 ```
 
 ### 📦 Development Installation
