@@ -94,20 +94,14 @@ cmd_autofix() {
 
     # Remove unused imports and variables
     log_info "Removing unused imports and variables..."
-    autoflake --remove-all-unused-imports --remove-unused-variables --in-place --recursive gracenote2epg/
-    autoflake --remove-all-unused-imports --remove-unused-variables --in-place tv_grab_gracenote2epg
+    autoflake --remove-unused-variables --remove-all-unused-imports --recursive --in-place gracenote2epg/
+    autoflake --remove-unused-variables --remove-all-unused-imports --in-place tv_grab_gracenote2epg
 
-    # Fix specific issues (safe fixes only)
     log_info "Fixing specific code issues..."
-
-    # Fix bare excepts (E722) - add Exception (but be careful with existing code)
-    # Only replace standalone "except:" not "except SomeException:"
+    # Fix bare except clauses
     find gracenote2epg/ -name "*.py" -exec sed -i 's/except:[[:space:]]*$/except Exception:/g' {} \; 2>/dev/null || true
-
     # Fix whitespace in tv_grab_gracenote2epg
     sed -i 's/[[:space:]]*$//' tv_grab_gracenote2epg 2>/dev/null || true
-
-    log_warning "F541 (f-string placeholders) not auto-fixed - adjust manually if needed"
 
     log_success "Auto-fixes completed"
 }

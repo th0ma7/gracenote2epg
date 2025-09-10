@@ -101,22 +101,83 @@ tv_grab_gracenote2epg --show-lineup --postal J3B1M4
 tv_grab_gracenote2epg --show-lineup --zip 90210 --debug
 ```
 
+## 🆕 Enhanced Geographic Resolution
+
+gracenote2epg now includes **intelligent geographic resolution** for more accurate lineup URLs:
+
+### ✅ Automatic Resolution
+When `pgeocode` is installed, the system automatically resolves your postal code to the correct city and province:
+
+```bash
+# Install with geographic resolution (recommended)
+pip install gracenote2epg[full]
+
+# Or install just the geocoding feature
+pip install gracenote2epg[geocoding]
+```
+
+### 📍 Status Indicators
+The `--show-lineup` command now shows the geographic resolution status:
+
+#### ✅ **Successfully Resolved**
+```
+✅ VALIDATION URLs:
+   Direct URL: https://www.tvtv.ca/qc/montreal/h1a1a1/luCAN-OTAH1A1A1
+   Status: ✅ Location automatically resolved (Montreal, QC)
+```
+
+#### ⚠️ **Manual Lookup Required**
+```
+✅ VALIDATION URLs:
+   Status: ⚠️ Unable to automatically resolve location for H9Z9Z9. Please use manual lookup instructions below.
+   Manual lookup required:
+     1. Go to https://www.tvtv.ca/
+     2. Enter postal code: H9Z 9Z9
+     3a. For OTA: Click 'Broadcast' → 'Local Over the Air' → Look for 'luCAN-OTAH9Z9Z9' in URL
+     ...
+```
+
+### 🔄 Graceful Fallback
+- **Without pgeocode**: Manual lookup instructions are always provided
+- **Resolution fails**: Automatic fallback to manual lookup process
+- **No breaking changes**: Existing installations continue to work normally
+
 ## 📊 Example Output
 
-### Normal Mode
+### Enhanced Normal Mode (with pgeocode)
 ```
-🌐 GRACENOTE API URL PARAMETERS:
+🌍 GRACENOTE API URL PARAMETERS:
+   lineupId=CAN-OTAJ3B1M4-DEFAULT
+   country=CAN
+   postalCode=J3B1M4
+
+✅ VALIDATION URLs:
+   Direct URL: https://www.tvtv.ca/qc/saint-jean-sur-richelieu/j3b1m4/luCAN-OTAJ3B1M4
+   Status: ✅ Location automatically resolved (Saint-Jean-sur-Richelieu, QC)
+     1. Go to https://www.tvtv.ca/
+     2. Enter postal code: J3B 1M4
+     3a. For OTA: Click 'Broadcast' → 'Local Over the Air' → Look for 'luCAN-OTAJ3B1M4' in URL
+     3b. For Cable/Sat: Select your provider → Look for 'luCAN-[ProviderID]-X' in URL
+     4. Expected OTA pattern: luCAN-OTAJ3B1M4
+
+🔗 GRACENOTE API URL FOR TESTING:
+   https://tvlistings.gracenote.com/api/grid?aid=orbebb&country=CAN&postalCode=J3B1M4&time=1755432000&timespan=3&isOverride=true&userId=-&lineupId=CAN-OTAJ3B1M4-DEFAULT&headendId=lineupId
+```
+
+### Legacy Mode (without pgeocode)
+```
+🌍 GRACENOTE API URL PARAMETERS:
    lineupId=USA-OTA90210-DEFAULT
    country=USA
    postalCode=90210
 
-✅ VALIDATION URLs (manual verification):
-   Auto-generated: https://www.tvtv.us/ca/beverly-hills/90210/luUSA-OTA90210
-   Manual lookup:
+✅ VALIDATION URLs:
+   Status: ⚠️ Unable to automatically resolve location for 90210. Please use manual lookup instructions below.
+   Manual lookup required:
      1. Go to https://www.tvtv.us/
      2. Enter ZIP code: 90210
-     3a. For OTA: Click 'Broadcast' → 'Local Over the Air' → URL shows luUSA-OTA90210
-     3b. For Cable/Sat: Select provider → URL shows luUSA-[ProviderID]-X
+     3. Click 'Broadcast' → 'Local Over the Air'
+     4. Look for 'luUSA-OTA90210' in the URL
 
 🔗 GRACENOTE API URL FOR TESTING:
    https://tvlistings.gracenote.com/api/grid?aid=orbebb&country=USA&postalCode=90210&time=1755432000&timespan=3&isOverride=true&userId=-&lineupId=USA-OTA90210-DEFAULT&headendId=lineupId
@@ -124,8 +185,8 @@ tv_grab_gracenote2epg --show-lineup --zip 90210 --debug
 
 ### Debug Mode
 Includes additional technical information:
-- Other API parameters and their meanings
-- Device type detection information
+- Geographic resolution process details
+- City name normalization for URL compatibility
 - Manual download commands with proper headers
 - Recommended configuration examples
 - Troubleshooting tips
@@ -181,6 +242,11 @@ CAN-0005993-X         → CAN-0005993-X (unchanged)
 1. Use `--show-lineup --debug` to see valid formats
 2. Ensure you copied the lineup ID correctly from tvtv.com
 3. Remove any extra characters or spaces
+
+### Issue: Non-functional validation URLs
+**Fixed in v1.5.6**: Validation URLs are now dynamically generated based on actual geographic locations
+**Before**: Hardcoded URLs that only worked for specific locations
+**After**: Dynamic URLs that work for all valid postal/ZIP codes
 
 ### Issue: Inconsistent location codes
 **Error message**: `"Inconsistent location codes: lineupid contains 'J3B1M4' but explicit location is 'J3B2M4'"`
@@ -266,6 +332,7 @@ tv_grab_gracenote2epg --debug --console --days 1 --lineupid CAN-OTAJ3B1M4
 
 Debug mode includes:
 - Device type detection: `device: - (auto-detected for optional &device= URL parameter)`
+- Geographic resolution status and process details
 - Detailed URL parameter explanations
 - Technical API information
 - Postal code normalization details
@@ -288,14 +355,15 @@ All postal codes are displayed consistently without spaces:
 If you're still having issues with lineup configuration:
 
 1. **Test first**: `tv_grab_gracenote2epg --show-lineup --zip YOUR_CODE`
-2. **Check logs**: Look for lineup-related messages in the log files
-3. **Validate**: Visit the tvtv.com URLs shown in `--show-lineup` output
-4. **Debug**: Use `--debug` flag for detailed technical information
-5. **Check normalization**: Ensure postal codes match exactly (no spaces)
+2. **Check geographic resolution**: Look for ✅ or ⚠️ status indicators
+3. **Check logs**: Look for lineup-related messages in the log files
+4. **Validate**: Visit the tvtv.com URLs shown in `--show-lineup` output
+5. **Debug**: Use `--debug` flag for detailed technical information
+6. **Check normalization**: Ensure postal codes match exactly (no spaces)
 
 ### Debug Commands for Troubleshooting
 ```bash
-# Basic lineup test
+# Basic lineup test with geographic resolution
 tv_grab_gracenote2epg --show-lineup --zip 92101
 
 # Detailed debug information
@@ -308,4 +376,16 @@ tv_grab_gracenote2epg --days 1 --zip 92101 --debug --console
 tv_grab_gracenote2epg --lineupid CAN-OTAJ3B1M4 --debug --console
 ```
 
-The `--show-lineup` command is your best friend for lineup configuration troubleshooting! 🚀
+### Geographic Resolution Troubleshooting
+```bash
+# Check if pgeocode is installed
+python -c "import pgeocode; print('pgeocode available')"
+
+# Install geographic resolution support
+pip install gracenote2epg[geocoding]
+
+# Test geographic resolution
+tv_grab_gracenote2epg --show-lineup --postal J3B1M4 --debug
+```
+
+The `--show-lineup` command with enhanced geographic resolution is your best friend for lineup configuration troubleshooting! 🚀

@@ -15,6 +15,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 
+# Import the new lineup manager
+from .gracenote2epg_lineup import LineupManager
+
 
 class ConfigManager:
     """Manages gracenote2epg configuration file"""
@@ -141,6 +144,9 @@ class ConfigManager:
         self.config_changes: Dict[str, str] = {}  # Track command line changes for clean logging
         self._backup_file_created: Optional[str] = None  # Track backup file creation
         self._original_file_settings: Dict[str, Any] = {}  # Store original config file values
+
+        # Initialize lineup manager
+        self.lineup_manager = LineupManager()
 
     def load_config(
         self,
@@ -320,6 +326,55 @@ class ConfigManager:
                     return location
 
         return None
+
+    def display_lineup_detection_test(self, postal_code: str, debug_mode: bool = False) -> bool:
+        """
+        Display lineup detection test results - DELEGATE TO LINEUP MANAGER
+
+        Args:
+            postal_code: Postal/ZIP code to test
+            debug_mode: Whether to show detailed debug information
+
+        Returns:
+            bool: True if valid postal code, False otherwise
+        """
+        return self.lineup_manager.display_lineup_detection_test(postal_code, debug_mode)
+
+    def validate_postal_code_format(self, postal_code: str) -> Tuple[bool, str, str]:
+        """
+        Validate postal code format and return country info - DELEGATE TO LINEUP MANAGER
+        """
+        return self.lineup_manager.validate_postal_code_format(postal_code)
+
+    def normalize_lineup_id(self, lineupid: str, country: str, postal_code: str) -> str:
+        """
+        Normalize lineup ID to API format - DELEGATE TO LINEUP MANAGER
+        """
+        return self.lineup_manager.normalize_lineup_id(lineupid, country, postal_code)
+
+    def detect_device_type(self, normalized_lineup_id: str) -> str:
+        """
+        Auto-detect device type from lineup ID - DELEGATE TO LINEUP MANAGER
+        """
+        return self.lineup_manager.detect_device_type(normalized_lineup_id)
+
+    def generate_description(self, normalized_lineup_id: str, country: str) -> str:
+        """
+        Auto-generate description from lineup ID - DELEGATE TO LINEUP MANAGER
+        """
+        return self.lineup_manager.generate_description(normalized_lineup_id, country)
+
+    def get_lineup_config(self) -> Dict[str, str]:
+        """Get lineup configuration with automatic normalization and detection - DELEGATE TO LINEUP MANAGER"""
+        lineupid = self.settings.get("lineupid", "auto")
+        postal_code = self.settings.get("zipcode", "")
+        country = self.get_country()
+
+        return self.lineup_manager.get_lineup_config(lineupid, postal_code, country)
+
+    def _get_auto_lineup_config(self, postal_code: str, country: str) -> Dict[str, str]:
+        """Get auto-generated lineup configuration for display purposes - DELEGATE TO LINEUP MANAGER"""
+        return self.lineup_manager.get_auto_lineup_config(postal_code, country)
 
     def _create_default_config(self):
         """Create default configuration file with proper permissions"""
@@ -833,340 +888,6 @@ class ConfigManager:
         # Check if it's a valid period
         valid_periods = ["weekly", "monthly", "quarterly", "unlimited"]
         return value.lower() in valid_periods
-
-    def display_lineup_detection_test(self, postal_code: str, debug_mode: bool = False) -> bool:
-        """
-        Display lineup detection test results - simplified by default, detailed in debug mode
-
-        Args:
-            postal_code: Postal/ZIP code to test
-            debug_mode: Whether to show detailed debug information
-
-        Returns:
-            bool: True if valid postal code, False otherwise
-        """
-        # Validate postal code format
-        is_valid, country, clean_postal = self.validate_postal_code_format(postal_code)
-
-        if not is_valid:
-            print(f"❌ ERROR: Invalid postal/ZIP code format: {postal_code}")
-            print("   Expected formats:")
-            print("   - US ZIP code: 90210")
-            print("   - Canadian postal: J3B1M4 or J3B 1M4")
-            return False
-
-        # Get country info
-        country_name = "United States" if country == "USA" else "Canada"
-
-        # Generate lineup IDs using new simplified method
-        auto_lineup_config = self._get_auto_lineup_config(clean_postal, country)
-
-        # Display results using unified function
-        self._display_lineup_output(
-            postal_code, clean_postal, country_name, country, auto_lineup_config, debug_mode
-        )
-
-        return True
-
-    def _display_lineup_output(
-        self,
-        postal_code: str,
-        clean_postal: str,
-        country_name: str,
-        country: str,
-        lineup_config: Dict,
-        debug_mode: bool = False
-    ):
-        """
-        Display lineup detection output - unified function for both simple and debug modes
-
-        Args:
-            postal_code: Original postal code input
-            clean_postal: Normalized postal code
-            country_name: Full country name
-            country: Country code (USA/CAN)
-            lineup_config: Auto-generated lineup configuration
-            debug_mode: Whether to show debug information
-        """
-        # Calculate current time rounded to nearest 3-hour block
-        import time
-        from datetime import datetime
-
-        now = datetime.now().replace(microsecond=0, second=0, minute=0)
-        # Round to nearest 3-hour block (0, 3, 6, 9, 12, 15, 18, 21)
-        standard_hour = (now.hour // 3) * 3
-        standard_dt = now.replace(hour=standard_hour)
-        example_time = str(int(time.mktime(standard_dt.timetuple())))
-
-        # Header (different for debug mode)
-        if debug_mode:
-            print("=" * 70)
-            print("GRACENOTE2EPG - LINEUP DETECTION (DEBUG MODE)")
-            print("=" * 70)
-            print(f"📍 LOCATION INFORMATION:")
-            print(f"   Normalized code:   {clean_postal}")
-            print(f"   Detected country:  {country_name} ({country})")
-            print()
-
-        # API parameters
-        print(f"🌍 GRACENOTE API URL PARAMETERS:")
-        print(f"   lineupId={lineup_config['api_lineup_id']}")
-        print(f"   country={country}")
-        print(f"   postalCode={clean_postal}")
-        print()
-
-        # Validation URLs
-        print(f"✅ VALIDATION URLs (manual verification):")
-        print(f"   Auto-generated: {lineup_config['tvtv_url']}")
-
-        if debug_mode:
-            print(
-                f"   Note: OTA format is {lineup_config['tvtv_lineup_id']} "
-                f"(country + OTA + postal, no -DEFAULT suffix)"
-            )
-            print(f"   Cable/Satellite providers use different format: {country}-[ProviderID]-X")
-
-        print(f"   Manual lookup:")
-        if country == "CAN":
-            print(f"     1. Go to https://www.tvtv.ca/")
-            print(f"     2. Enter postal code: {clean_postal}")
-            print(
-                f"     3a. For OTA: Click 'Broadcast' → 'Local Over the Air' → "
-                f"URL shows lu{lineup_config['tvtv_lineup_id']}"
-            )
-            print(f"     3b. For Cable/Sat: Select provider → URL shows lu{country}-[ProviderID]-X")
-        else:
-            print(f"     1. Go to https://www.tvtv.us/")
-            print(f"     2. Enter ZIP code: {clean_postal}")
-            print(
-                f"     3a. For OTA: Click 'Broadcast' → 'Local Over the Air' → "
-                f"URL shows lu{lineup_config['tvtv_lineup_id']}"
-            )
-            print(f"     3b. For Cable/Sat: Select provider → URL shows lu{country}-[ProviderID]-X")
-        print()
-
-        # API test URL
-        print(f"🔗 GRACENOTE API URL FOR TESTING:")
-
-        if debug_mode:
-            # Show the human-readable time for debugging
-            print(f"   Using current block: {standard_dt.strftime('%Y-%m-%d %H:00')} "
-                  f"(timestamp: {example_time})")
-
-        test_url = (
-            f"https://tvlistings.gracenote.com/api/grid?"
-            f"aid=orbebb&"
-            f"country={country}&"
-            f"postalCode={clean_postal}&"
-            f"time={example_time}&"
-            f"timespan=3&"
-            f"isOverride=true&"
-            f"userId=-&"
-            f"lineupId={lineup_config['api_lineup_id']}&"
-            f"headendId=lineupId"
-        )
-        print(f"   {test_url}")
-        print()
-
-        # Debug-only sections
-        if debug_mode:
-            print(f"📊 GRACENOTE API - OTHER COMMON PARAMETERS:")
-            print(
-                f"   • &device=[-|X]                    "
-                f"Device type: - for Over-the-Air, X for cable/satellite"
-            )
-            print(
-                f"   • &pref=16%2C128                   "
-                f"Preference codes (16,128): channel lineup preferences"
-            )
-            print(
-                f"   • &timezone=America%2FNew_York     "
-                f"User timezone for schedule times (URL-encoded)"
-            )
-            print(f"   • &languagecode=en-us              Content language: en-us, fr-ca, es-us, etc.")
-            print(
-                f"   • &TMSID=                          "
-                f"Tribune Media Services ID (legacy, usually empty)"
-            )
-            print(
-                f"   • &AffiliateID=lat                 "
-                f"Partner/affiliate identifier (lat=local affiliate)"
-            )
-            print()
-
-            print(f"💾 MANUAL DOWNLOAD:")
-            print(f"⚠️  NOTE: Using browser-like headers to bypass AWS WAF")
-            print()
-            print(
-                f'curl -s -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                f'AppleWebKit/537.36" \\'
-            )
-            print(f'     -H "Accept: application/json, text/html, application/xhtml+xml, */*" \\')
-            print(f'     "{test_url}" > out.json')
-            print()
-
-            print(f"🔧 RECOMMENDED CONFIGURATION:")
-            country_full = "Canada" if country == "CAN" else "United States"
-            print(f"   <!-- Simplified configuration (auto-detection) -->")
-            print(f'   <setting id="zipcode">{clean_postal}</setting>')
-            print(f'   <setting id="lineupid">auto</setting>')
-            print()
-            print(f"   <!-- Alternative: Copy tvtv.com lineup ID directly -->")
-            print(f"   <!-- <setting id=\"lineupid\">{lineup_config['tvtv_lineup_id']}</setting> -->")
-            print()
-            print(f"   <!-- For Cable/Satellite providers: -->")
-            print(f'   <!-- <setting id="lineupid">{country}-[ProviderID]-X</setting> -->')
-            print(
-                f'   <!-- Example: <setting id="lineupid">{country}-0005993-X</setting> '
-                f'for Videotron -->'
-            )
-            print()
-
-            print("=" * 70)
-            print("💡 NEXT STEPS:")
-            print("1. Verify the validation URLs show your local channels")
-            print("2. Update your gracenote2epg.xml with the recommended configuration")
-            print("3. Run: tv_grab_gracenote2epg --days 1 --console")
-            print("4. Look for 'Auto-detected lineupID' in the logs")
-            print("5. Confirm no HTTP 400 errors in download attempts")
-            print("=" * 70)
-            print()
-
-        # Documentation link (always shown)
-        print("📖 DOCUMENTATION:")
-        print("   https://github.com/th0ma7/gracenote2epg/blob/main/docs/lineup-configuration.md")
-
-    def validate_postal_code_format(self, postal_code: str) -> Tuple[bool, str, str]:
-        """
-        Validate postal code format and return country info
-
-        Args:
-            postal_code: Raw postal code input
-
-        Returns:
-            tuple: (is_valid, country_code, clean_postal)
-        """
-        clean_postal = postal_code.replace(" ", "").upper()
-
-        if clean_postal.isdigit() and len(clean_postal) == 5:
-            return True, "USA", clean_postal
-        elif re.match(r"^[A-Z][0-9][A-Z][0-9][A-Z][0-9]$", clean_postal):
-            return True, "CAN", clean_postal
-        else:
-            return False, "", clean_postal
-
-    def normalize_lineup_id(self, lineupid: str, country: str, postal_code: str) -> str:
-        """
-        Normalize lineup ID to API format
-
-        Args:
-            lineupid: Raw lineup ID from config (auto, tvtv format, or complete)
-            country: Country code (USA/CAN)
-            postal_code: Postal/ZIP code
-
-        Returns:
-            Normalized lineup ID for API use
-        """
-        if not lineupid or lineupid.lower() == "auto":
-            # Auto-generate OTA lineup ID
-            return f"{country}-OTA{postal_code}-DEFAULT"
-
-        elif not lineupid.endswith("-DEFAULT") and not lineupid.endswith("-X"):
-            # Format from tvtv.com (e.g. CAN-OTAJ3B1M4) → Add -DEFAULT for API
-            return f"{lineupid}-DEFAULT"
-
-        else:
-            # Already complete format (e.g. CAN-OTAJ3B1M4-DEFAULT or CAN-0005993-X)
-            return lineupid
-
-    def detect_device_type(self, normalized_lineup_id: str) -> str:
-        """
-        Auto-detect device type from lineup ID
-
-        Args:
-            normalized_lineup_id: Normalized lineup ID
-
-        Returns:
-            Device type: "-" for OTA, "X" for cable/satellite
-        """
-        if "OTA" in normalized_lineup_id:
-            return "-"  # Over-the-Air
-        elif normalized_lineup_id.endswith("-X"):
-            return "X"  # Cable/Satellite
-        else:
-            return "-"  # Default to OTA
-
-    def generate_description(self, normalized_lineup_id: str, country: str) -> str:
-        """
-        Auto-generate description from lineup ID
-
-        Args:
-            normalized_lineup_id: Normalized lineup ID
-            country: Country code
-
-        Returns:
-            Human-readable description
-        """
-        country_name = "United States" if country == "USA" else "Canada"
-
-        if "OTA" in normalized_lineup_id:
-            return f"Local Over the Air Broadcast ({country_name})"
-        elif normalized_lineup_id.endswith("-X"):
-            return f"Cable/Satellite Provider ({country_name})"
-        else:
-            return f"TV Lineup ({country_name})"
-
-    def get_lineup_config(self) -> Dict[str, str]:
-        """Get lineup configuration with automatic normalization and detection"""
-        lineupid = self.settings.get("lineupid", "auto")
-        postal_code = self.settings.get("zipcode", "")
-        country = self.get_country()
-
-        # Normalize lineup ID
-        normalized_lineup_id = self.normalize_lineup_id(lineupid, country, postal_code)
-
-        # Auto-detect device type
-        device_type = self.detect_device_type(normalized_lineup_id)
-
-        # Auto-generate description
-        description = self.generate_description(normalized_lineup_id, country)
-
-        # Determine if this was auto-detected
-        auto_detected = not lineupid or lineupid.lower() == "auto"
-
-        return {
-            "lineup_id": normalized_lineup_id,  # Full API format
-            "headend_id": "lineupId",  # Always literal 'lineupId' for API
-            "device_type": device_type,  # Auto-detected device type
-            "description": description,  # Auto-generated description
-            "auto_detected": auto_detected,
-            "original_config": lineupid,  # Original config value
-            "country": country,
-            "postal_code": postal_code,
-        }
-
-    def _get_auto_lineup_config(self, postal_code: str, country: str) -> Dict[str, str]:
-        """Get auto-generated lineup configuration for display purposes"""
-        # Generate OTA lineup IDs
-        base_lineup = f"OTA{postal_code}"
-        tvtv_lineup_id = f"{country}-{base_lineup}"
-        api_lineup_id = f"{country}-{base_lineup}-DEFAULT"
-
-        # Generate tvtv.com URL
-        if country == "CAN":
-            postal_for_url = postal_code.lower()
-            tvtv_url = f"https://www.tvtv.ca/qc/saint-jean-sur-richelieu/{postal_for_url}/lu{tvtv_lineup_id}"
-        else:
-            tvtv_url = f"https://www.tvtv.us/ca/beverly-hills/{postal_code}/lu{tvtv_lineup_id}"
-
-        return {
-            "tvtv_lineup_id": tvtv_lineup_id,  # Format for tvtv.com
-            "api_lineup_id": api_lineup_id,  # Format for API
-            "tvtv_url": tvtv_url,  # Complete tvtv.com URL
-            "device_type": "-",  # OTA device type
-            "country": country,
-            "postal_code": postal_code,
-        }
 
     def get_retention_config(self) -> Dict[str, Any]:
         """Get unified cache and retention configuration"""
