@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, Optional, List
 
-from .gracenote2epg_dictionaries import (
+from .dictionaries import (
     get_category_translation,
     get_term_translation,
     get_language_display_name,

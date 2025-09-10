@@ -15,8 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
-from .gracenote2epg_utils import CacheManager, TimeUtils, HtmlUtils
-from .gracenote2epg_language import LanguageDetector
+from .utils import CacheManager, TimeUtils, HtmlUtils
+from .language import LanguageDetector
 
 
 class XmltvGenerator:

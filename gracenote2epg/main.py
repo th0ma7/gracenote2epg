@@ -2,9 +2,10 @@
 """
 gracenote2epg - North America TV Guide Grabber
 
-A modular Python implementation for downloading TV guide data from
-tvlistings.gracenote.com with intelligent caching and TVheadend integration.
-Updated with unified retention policies for logs and XMLTV backups.
+A modular implementation:
+- downloader/: HTTP operations and caching
+- parser/: Pure data parsing logic
+- main.py: Application orchestration and flow
 """
 
 import logging
@@ -13,14 +14,13 @@ import time
 from pathlib import Path
 
 # Specific imports
-from .gracenote2epg_args import ArgumentParser
-from .gracenote2epg_config import ConfigManager
-from .gracenote2epg_downloader import OptimizedDownloader
-from .gracenote2epg_parser import GuideParser
-from .gracenote2epg_tvheadend import TvheadendClient
-from .gracenote2epg_utils import CacheManager
-from .gracenote2epg_xmltv import XmltvGenerator
-from .gracenote2epg_logrotate import LogRotationManager
+from .args import ArgumentParser
+from .config import ConfigManager
+from .parser import DataParser
+from .tvheadend import TvheadendClient
+from .utils import CacheManager
+from .xmltv import XmltvGenerator
+from .logrotate import LogRotationManager
 
 # Package version
 from . import __version__
@@ -36,8 +36,6 @@ def check_rotation_status(log_file: Path, retention_config: dict):
         log_basename = log_file.name
 
         # Find backup files created recently (last 10 minutes)
-        import time
-
         recent_cutoff = time.time() - 600  # 10 minutes ago
         recent_backups = []
 
@@ -58,8 +56,6 @@ def check_rotation_status(log_file: Path, retention_config: dict):
             for backup in sorted(recent_backups):
                 try:
                     size_mb = backup.stat().st_size / (1024 * 1024)
-                    # Extract period from filename
-                    backup.name.replace(f"{log_basename}.", "")
                     logging.info(
                         "    Created backup: %s (%.1f MB) - %s rotation",
                         backup.name,
@@ -212,13 +208,11 @@ def main():
         defaults = arg_parser.get_system_defaults()
 
         # Override defaults with command line arguments
-        args.basedir or defaults["base_dir"]
         config_file = args.config_file or defaults["config_file"]
         xmltv_file = args.output or defaults["xmltv_file"]
         log_file = defaults["log_file"]
 
         # Ensure directories exist
-        arg_parser = ArgumentParser()
         arg_parser.create_directories_with_proper_permissions()
 
         # Load and validate configuration
@@ -233,7 +227,7 @@ def main():
             lineupid=getattr(args, "original_lineupid", None),
         )
 
-        # Get unified retention configuration (replaces old logrotate_config)
+        # Get unified retention configuration
         retention_config = config_manager.get_retention_config()
 
         # Setup logging with unified retention policy
@@ -270,7 +264,7 @@ def main():
         logging.info("Configuration loaded from: %s", config_file)
         config_manager.log_config_summary()
 
-        # Initialize components
+        # Initialize components with new architecture
         cache_manager = CacheManager(defaults["cache_dir"])
 
         # Setup TVheadend client if enabled
@@ -305,7 +299,7 @@ def main():
         now = datetime.now().replace(microsecond=0, second=0, minute=0)
         grid_time_start = int(time.mktime(now.timetuple())) + int(offset * 86400)
 
-        # Log guide parameters (remove redundant info already shown in config summary)
+        # Log guide parameters
         logging.info("TV Guide duration: %s days", days)
 
         if offset > 1:
@@ -334,12 +328,9 @@ def main():
         )
 
         # Download and parse guide data
-        with OptimizedDownloader(base_delay=0.8, min_delay=0.4) as downloader:
-            guide_parser = GuideParser(cache_manager, downloader, tvh_client)
-
-            # Download guide blocks with configurable refresh
-            # Passes config_manager instead of individual parameters
-            guide_success = guide_parser.optimized_guide_download(
+        with DataParser(cache_manager, tvh_client) as data_parser:
+            # Download and parse guide blocks
+            guide_success = data_parser.download_and_parse_guide(
                 grid_time_start=grid_time_start,
                 day_hours=day_hours,
                 config_manager=config_manager,
@@ -350,12 +341,12 @@ def main():
                 logging.warning("Guide download had issues, but continuing with available data")
 
             # Clean show cache now that we have parsed episodes
-            active_series = guide_parser.get_active_series_list()
+            active_series = data_parser.get_active_series_list()
             cache_manager.perform_show_cleanup(active_series)
 
             # Download extended details if needed
             if config_manager.needs_extended_download():
-                extended_success = guide_parser.parse_extended_details()
+                extended_success = data_parser.download_and_parse_series_details()
                 if not extended_success:
                     logging.warning(
                         "Extended details download had issues, using basic descriptions"
@@ -364,7 +355,7 @@ def main():
             # Generate XMLTV
             xmltv_generator = XmltvGenerator(cache_manager)
             xmltv_success = xmltv_generator.generate_xmltv(
-                schedule=guide_parser.schedule, config=config, xmltv_file=xmltv_file
+                schedule=data_parser.get_schedule(), config=config, xmltv_file=xmltv_file
             )
 
             if not xmltv_success:
@@ -372,7 +363,7 @@ def main():
                 return 1
 
             # Final cleanup
-            final_active_series = guide_parser.get_active_series_list()
+            final_active_series = data_parser.get_active_series_list()
             if final_active_series:
                 cache_manager.clean_show_cache(final_active_series)
                 logging.info(
@@ -389,27 +380,29 @@ def main():
                 xmltv_generator.episode_count,
             )
 
-            # Downloader statistics
-            final_stats = downloader.get_stats()
+            # Comprehensive download statistics
+            dl_stats = data_parser.get_downloader_statistics()
             logging.info("Final download statistics:")
-            logging.info("  Total requests: %d", final_stats["total_requests"])
-            logging.info("  WAF blocks encountered: %d", final_stats["waf_blocks"])
-            logging.info("  Final delay: %.2fs", final_stats["current_delay"])
+            logging.info("  Guide blocks: %d downloaded, %d cached, %d failed", 
+                        dl_stats["guide"]["downloaded"],
+                        dl_stats["guide"]["cached"], 
+                        dl_stats["guide"]["failed"])
+            logging.info("  Series details: %d downloaded, %d cached, %d failed",
+                        dl_stats["series"]["downloaded"],
+                        dl_stats["series"]["cached"],
+                        dl_stats["series"]["failed"])
+            logging.info("  HTTP requests: %d total, %d WAF blocks, %.2fs final delay",
+                        dl_stats["http_engine"]["total_requests"],
+                        dl_stats["http_engine"]["waf_blocks"],
+                        dl_stats["http_engine"]["current_delay"])
 
             # Log final cache and retention policy status for transparency
             if retention_config.get("enabled", False):
                 log_retention = retention_config.get("log_retention_days", 30)
                 xmltv_retention = retention_config.get("xmltv_retention_days", 7)
 
-                if log_retention == 0:
-                    log_desc = "unlimited"
-                else:
-                    log_desc = f"{log_retention} days"
-
-                if xmltv_retention == 0:
-                    xmltv_desc = "unlimited"
-                else:
-                    xmltv_desc = f"{xmltv_retention} days"
+                log_desc = "unlimited" if log_retention == 0 else f"{log_retention} days"
+                xmltv_desc = "unlimited" if xmltv_retention == 0 else f"{xmltv_retention} days"
 
                 logging.info("Unified cache and retention policy applied:")
                 logging.info(

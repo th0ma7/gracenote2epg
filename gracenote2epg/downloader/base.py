@@ -1,8 +1,8 @@
 """
-gracenote2epg.gracenote2epg_downloader - Optimized download manager
+gracenote2epg.downloader.base - HTTP download engine
 
-Handles HTTP downloads with WAF protection, adaptive delays, connection reuse,
-and intelligent retry logic for both guide data and extended series details.
+Handles low-level HTTP downloads with WAF protection, adaptive delays, connection reuse,
+and intelligent retry logic. This is the core HTTP engine used by specialized downloaders.
 """
 
 import json
@@ -21,7 +21,7 @@ import urllib3
 
 
 class OptimizedDownloader:
-    """Optimized download manager with WAF protection and adaptive delays"""
+    """HTTP download engine with WAF protection and adaptive delays"""
 
     def __init__(self, base_delay: float = 1.0, min_delay: float = 0.5):
         self.session: Optional[requests.Session] = None
@@ -84,8 +84,7 @@ class OptimizedDownloader:
 
         # Set initial User-Agent
         self.rotate_user_agent()
-        logging.info("Optimized session initialized with persistent connections")
-        logging.debug("  Connection pooling: 1 connection max, keep-alive enabled")
+        logging.debug("HTTP engine initialized with persistent connections")
 
     def rotate_user_agent(self):
         """Rotate User-Agent intelligently"""
@@ -333,8 +332,9 @@ class OptimizedDownloader:
         if self.session:
             self.session.close()
             self.session = None
+            logging.debug("HTTP engine closed")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_statistics(self) -> Dict[str, Any]:
         """Get download statistics"""
         return {
             "total_requests": self.total_requests,
