@@ -5,7 +5,7 @@ A modular Python implementation for downloading TV guide data from
 tvlistings.gracenote.com with intelligent caching and TVheadend integration.
 """
 
-__version__ = "1.6.0"
+__version__ = "1.6.1"
 __author__ = "th0ma7"
 __license__ = "GPL-3.0"
 
