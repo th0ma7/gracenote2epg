@@ -22,6 +22,8 @@ from .language import LanguageDetector
 class XmltvGenerator:
     """Generates XMLTV files from parsed guide data - DTD Compliant"""
 
+    ASSETS_BASE_URL = "https://www.tvtv.ca/gn/pi/assets"
+
     def __init__(self, cache_manager: CacheManager):
         self.cache_manager = cache_manager
         self.station_count = 0
@@ -545,7 +547,7 @@ class XmltvGenerator:
 
                             # Add image directly after name without line break
                             if use_extended_details and asset_id:
-                                photo_url = f"https://zap2it.tmsimg.com/assets/{asset_id}.jpg"
+                                photo_url = f"{self.ASSETS_BASE_URL}/g/{asset_id}.jpg"
                                 fh.write(f'<image type="person">{photo_url}</image>')
 
                             fh.write(f"</{role}>\n")
@@ -560,7 +562,7 @@ class XmltvGenerator:
                                 and asset_id
                                 and role in ["actor", "director", "presenter"]
                             ):
-                                photo_url = f"https://zap2it.tmsimg.com/assets/{asset_id}.jpg"
+                                photo_url = f"{self.ASSETS_BASE_URL}/g/{asset_id}.jpg"
                                 fh.write(f'<image type="person">{photo_url}</image>')
 
                             fh.write(f"</{role}>\n")
@@ -817,23 +819,23 @@ class XmltvGenerator:
         if episode_key.startswith("MV"):  # Movie
             if episode_data.get("epthumb"):
                 fh.write(
-                    f'\t\t<icon src="https://zap2it.tmsimg.com/assets/{episode_data["epthumb"]}.jpg" />\n'
+                    f'\t\t<icon src="{self.ASSETS_BASE_URL}/g/{episode_data["epthumb"]}.jpg" />\n'
                 )
         else:  # TV Show
             if ep_icon == "1":  # Series + episode icons
                 # Only use epimage (from extended details) if xdetails=true
                 if use_extended_details and episode_data.get("epimage"):
                     fh.write(
-                        f'\t\t<icon src="https://zap2it.tmsimg.com/assets/{episode_data["epimage"]}.jpg" />\n'
+                        f'\t\t<icon src="{self.ASSETS_BASE_URL}/g/{episode_data["epimage"]}.jpg" />\n'
                     )
                 elif episode_data.get("epthumb"):
                     fh.write(
-                        f'\t\t<icon src="https://zap2it.tmsimg.com/assets/{episode_data["epthumb"]}.jpg" />\n'
+                        f'\t\t<icon src="{self.ASSETS_BASE_URL}/g/{episode_data["epthumb"]}.jpg" />\n'
                     )
             elif ep_icon == "2":  # Episode icons only
                 if episode_data.get("epthumb"):
                     fh.write(
-                        f'\t\t<icon src="https://zap2it.tmsimg.com/assets/{episode_data["epthumb"]}.jpg" />\n'
+                        f'\t\t<icon src="{self.ASSETS_BASE_URL}/g/{episode_data["epthumb"]}.jpg" />\n'
                     )
 
     def _is_new_or_live(self, episode_data: Dict) -> bool:
