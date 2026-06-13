@@ -104,29 +104,3 @@ class SystemDetector:
             cls.DETECTORS.insert(priority, detector_class)
         else:
             cls.DETECTORS.append(detector_class)
-    
-    # Compatibility methods for backward compatibility with old API
-    @classmethod
-    def detect_system_type(cls) -> str:
-        """
-        Static method for backward compatibility
-        
-        Returns:
-            str: System type identifier
-        """
-        detector = cls()
-        return detector.detect_system()
-    
-    @classmethod 
-    def get_dsm_version(cls) -> int:
-        """
-        Static method for getting DSM version (Synology specific)
-        
-        Returns:
-            int: DSM version or 0 if not Synology
-        """
-        detector = cls()
-        if detector.detect_system() == 'synology':
-            if detector._detector_instance:
-                return detector._detector_instance.get_dsm_version()
-        return 0

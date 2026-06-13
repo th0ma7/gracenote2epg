@@ -7,7 +7,7 @@ with intelligent fallbacks and caching for gracenote2epg configurations.
 
 import logging
 import sys
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 try:
     import pgeocode
@@ -258,14 +258,3 @@ class Geocoder:
             
         except Exception:
             return True
-
-    def clear_cache(self):
-        """Clear the location cache"""
-        self._location_cache.clear()
-
-    def get_cache_stats(self) -> Dict:
-        """Get cache statistics for debugging"""
-        return {
-            "cache_size": len(self._location_cache),
-            "cached_locations": list(self._location_cache.keys())
-        }

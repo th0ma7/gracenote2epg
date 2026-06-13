@@ -157,43 +157,17 @@ class DataParser:
         return self.schedule
 
     def get_downloader_statistics(self) -> Dict:
+        """Combined downloader + HTTP-engine statistics consumed by main.
+
+        Returns the guide/series/http_engine blocks main.py reports. The
+        downloaders, parsers and HTTP engine are all created unconditionally in
+        __init__, so no presence guards are needed.
         """
-        Get combined statistics from downloaders and parsers
-
-        Returns:
-            Dict: Structured statistics from all components
-        """
-        stats = {}
-
-        # Get guide downloader statistics
-        if hasattr(self, 'guide_downloader'):
-            guide_dl_stats = self.guide_downloader.get_downloader_statistics()
-            stats['guide'] = guide_dl_stats
-
-        # Get series downloader statistics
-        if hasattr(self, 'series_downloader'):
-            series_dl_stats = self.series_downloader.get_downloader_statistics()
-            stats['series'] = series_dl_stats
-
-        # Get parser statistics
-        if hasattr(self, 'guide_parser'):
-            parser_stats = self.guide_parser.get_parsing_statistics()
-            stats['parser'] = parser_stats
-
-        if hasattr(self, 'series_parser'):
-            series_parser_stats = self.series_parser.get_parsing_statistics()
-            # Merge series parser stats into parser stats
-            if 'parser' in stats:
-                stats['parser'].update(series_parser_stats)
-            else:
-                stats['parser'] = series_parser_stats
-
-        # Get HTTP engine statistics
-        if hasattr(self, 'http_engine'):
-            http_stats = self.http_engine.get_statistics()
-            stats['http_engine'] = http_stats
-
-        return stats
+        return {
+            'guide': self.guide_downloader.get_downloader_statistics(),
+            'series': self.series_downloader.get_downloader_statistics(),
+            'http_engine': self.http_engine.get_statistics(),
+        }
     
     def close(self):
         """Clean shutdown of HTTP engine"""

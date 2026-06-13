@@ -230,10 +230,6 @@ class ConfigMigrator:
             ", ".join(removed_settings),
         )
 
-    def get_backup_file_path(self) -> str:
-        """Get the path of the backup file created during migration"""
-        return self._backup_file_created
-
     def validate_migration_result(self, config_file: Path) -> bool:
         """Validate that migration was successful by attempting to parse the result"""
         try:
