@@ -227,8 +227,18 @@ class SettingsManager:
 
             f.write("</settings>\n")
 
-    def set_missing_defaults(self, settings: Dict[str, Any]) -> Dict[str, Any]:
-        """Set default values for missing settings"""
+    def set_missing_defaults(
+        self, settings: Dict[str, Any], original_settings: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """Set default values for settings missing from the original config file.
+
+        Whether a key is "missing" is decided from ``original_settings`` -- the
+        config file as parsed, before any command-line overrides -- so a key
+        supplied only on the CLI is still recognised as absent from the file and
+        persisted with its default (matching the pre-refactor behaviour). Defaults
+        are written into ``settings`` for this run without clobbering a CLI value,
+        and the added defaults are returned for file persistence.
+        """
         # Check if langdetect is available for smart default
         langdetect_available = self._check_langdetect_available()
 
@@ -256,10 +266,15 @@ class SettingsManager:
             "rexmltv": "7",
         }
 
+        # Decide what is missing from the ORIGINAL file (not the live, possibly
+        # CLI-overridden settings); fall back to live settings when no snapshot.
+        original = original_settings if original_settings is not None else settings
+
         settings_to_add = {}
         for key, default_value in defaults.items():
-            if key not in settings or settings[key] is None:
-                settings[key] = default_value
+            if key not in original or original[key] is None:
+                if key not in settings or settings[key] is None:
+                    settings[key] = default_value
                 settings_to_add[key] = default_value
                 logging.debug("Set default: %s = %s", key, default_value)
 

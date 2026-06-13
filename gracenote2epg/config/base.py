@@ -209,8 +209,10 @@ class ConfigManager:
 
     def _set_defaults_and_update_file(self):
         """Set default values for missing settings and update config file if needed"""
-        # Set defaults using original file values
-        added_defaults = self.settings_manager.set_missing_defaults(self.settings)
+        # Set defaults using original file values (pre command-line overrides)
+        added_defaults = self.settings_manager.set_missing_defaults(
+            self.settings, self._original_file_settings
+        )
 
         # Update config file if we added defaults
         if added_defaults:

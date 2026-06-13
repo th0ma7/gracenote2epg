@@ -72,8 +72,16 @@ class SeriesDownloader:
         
         # Log comprehensive statistics
         self._log_statistics()
-        
-        return self._calculate_success_rate() >= 70 or self.downloaded_count == 0
+
+        # Judge success on the *download* operation only: cached series are not a
+        # download outcome, so counting them (as _calculate_success_rate does for
+        # the stats display) would let a cache-dominated run mask a total
+        # fresh-download failure. Mirror the pre-refactor success/attempted rule.
+        attempted = self.downloaded_count + self.failed_count
+        download_success_rate = (
+            (self.downloaded_count / attempted * 100) if attempted else 100.0
+        )
+        return download_success_rate >= 70 or attempted == 0
     
     def _identify_series_to_download(self, unique_series: Set[str]) -> List[str]:
         """Identify which series need to be downloaded vs cached"""
