@@ -9,11 +9,11 @@ import json
 import logging
 from typing import Dict, List, Optional, Set
 
-from .base import OptimizedDownloader
+from .base import OptimizedDownloader, DownloaderStatsMixin
 from ..utils import CacheManager
 
 
-class SeriesDownloader:
+class SeriesDownloader(DownloaderStatsMixin):
     """Downloads extended series details with intelligent caching"""
     
     def __init__(self, http_engine: OptimizedDownloader, cache_manager: CacheManager):
@@ -148,14 +148,6 @@ class SeriesDownloader:
         """Get cached series details by ID"""
         return self.cache_manager.load_series_details(series_id)
     
-    def _calculate_success_rate(self) -> float:
-        """Calculate success rate percentage"""
-        total = self.downloaded_count + self.cached_count + self.failed_count
-        if total == 0:
-            return 100.0
-        success = self.downloaded_count + self.cached_count
-        return (success / total) * 100
-    
     def _log_statistics(self):
         """Log comprehensive download statistics"""
         success_rate = self._calculate_success_rate()
@@ -193,18 +185,3 @@ class SeriesDownloader:
         http_stats = self.http_engine.get_statistics()
         logging.debug("  HTTP requests: %d total, %d WAF blocks during series download", 
                      http_stats["total_requests"], http_stats["waf_blocks"])
-    
-    def get_downloader_statistics(self) -> Dict[str, any]:
-        """Get download statistics"""
-        return {
-            "downloaded": self.downloaded_count,
-            "cached": self.cached_count,
-            "failed": self.failed_count,
-            "total": self.downloaded_count + self.cached_count + self.failed_count,
-            "success_rate": self._calculate_success_rate(),
-            "cache_efficiency": (
-                (self.cached_count / (self.cached_count + self.downloaded_count) * 100)
-                if (self.cached_count + self.downloaded_count) > 0
-                else 0
-            ),
-        }

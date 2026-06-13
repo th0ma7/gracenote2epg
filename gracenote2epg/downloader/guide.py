@@ -10,11 +10,11 @@ import time
 import urllib.parse
 from typing import Dict, Optional
 
-from .base import OptimizedDownloader
+from .base import OptimizedDownloader, DownloaderStatsMixin
 from ..utils import CacheManager, TimeUtils
 
 
-class GuideDownloader:
+class GuideDownloader(DownloaderStatsMixin):
     """Downloads TV guide data blocks with intelligent caching"""
     
     def __init__(self, http_engine: OptimizedDownloader, cache_manager: CacheManager):
@@ -128,14 +128,6 @@ class GuideDownloader:
                 lineup_config["device_type"],
             )
     
-    def _calculate_success_rate(self) -> float:
-        """Calculate success rate percentage"""
-        total = self.downloaded_count + self.cached_count + self.failed_count
-        if total == 0:
-            return 100.0
-        success = self.downloaded_count + self.cached_count
-        return (success / total) * 100
-    
     def _log_statistics(self):
         """Log comprehensive download statistics"""
         total = self.downloaded_count + self.cached_count + self.failed_count
@@ -160,13 +152,3 @@ class GuideDownloader:
         http_stats = self.http_engine.get_statistics()
         logging.debug("  HTTP requests: %d total, %d WAF blocks", 
                      http_stats["total_requests"], http_stats["waf_blocks"])
-    
-    def get_downloader_statistics(self) -> Dict[str, any]:
-        """Get download statistics"""
-        return {
-            "downloaded": self.downloaded_count,
-            "cached": self.cached_count,
-            "failed": self.failed_count,
-            "total": self.downloaded_count + self.cached_count + self.failed_count,
-            "success_rate": self._calculate_success_rate()
-        }

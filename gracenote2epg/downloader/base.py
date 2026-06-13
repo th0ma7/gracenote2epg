@@ -350,3 +350,44 @@ class OptimizedDownloader:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit"""
         self.close()
+
+
+class DownloaderStatsMixin:
+    """Shared download counters and statistics for the specialized downloaders.
+
+    The guide and series downloaders both track downloaded/cached/failed counts
+    and report the same overall success rate and statistics dict; this mixin owns
+    that logic so the two stay in sync.
+    """
+
+    downloaded_count: int = 0
+    cached_count: int = 0
+    failed_count: int = 0
+
+    def _reset_counters(self):
+        self.downloaded_count = 0
+        self.cached_count = 0
+        self.failed_count = 0
+
+    def _calculate_success_rate(self) -> float:
+        """Overall success rate (downloads + cache hits) for the stats display."""
+        total = self.downloaded_count + self.cached_count + self.failed_count
+        if total == 0:
+            return 100.0
+        return (self.downloaded_count + self.cached_count) / total * 100
+
+    def get_downloader_statistics(self) -> Dict[str, Any]:
+        """Statistics dict consumed by the parser/main statistics report."""
+        cached_or_downloaded = self.cached_count + self.downloaded_count
+        return {
+            "downloaded": self.downloaded_count,
+            "cached": self.cached_count,
+            "failed": self.failed_count,
+            "total": self.downloaded_count + self.cached_count + self.failed_count,
+            "success_rate": self._calculate_success_rate(),
+            "cache_efficiency": (
+                (self.cached_count / cached_or_downloaded * 100)
+                if cached_or_downloaded > 0
+                else 0
+            ),
+        }
