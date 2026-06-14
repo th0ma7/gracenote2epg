@@ -98,7 +98,7 @@ class CreditsMixin:
 
                             # Add image directly after name without line break
                             if use_extended_details and asset_id:
-                                photo_url = f"{self.ASSETS_BASE_URL}/g/{asset_id}.jpg"
+                                photo_url = f"{self.ASSETS_BASE_URL}/{asset_id}.jpg"
                                 fh.write(f'<image type="person">{photo_url}</image>')
 
                             fh.write(f"</{role}>\n")
@@ -113,7 +113,7 @@ class CreditsMixin:
                                 and asset_id
                                 and role in ["actor", "director", "presenter"]
                             ):
-                                photo_url = f"{self.ASSETS_BASE_URL}/g/{asset_id}.jpg"
+                                photo_url = f"{self.ASSETS_BASE_URL}/{asset_id}.jpg"
                                 fh.write(f'<image type="person">{photo_url}</image>')
 
                             fh.write(f"</{role}>\n")

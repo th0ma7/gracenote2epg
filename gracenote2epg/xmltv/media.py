@@ -51,23 +51,23 @@ class MediaMixin:
         if episode_key.startswith("MV"):  # Movie
             if episode_data.get("epthumb"):
                 fh.write(
-                    f'\t\t<icon src="{self.ASSETS_BASE_URL}/g/{episode_data["epthumb"]}.jpg" />\n'
+                    f'\t\t<icon src="{self.ASSETS_BASE_URL}/{episode_data["epthumb"]}.jpg" />\n'
                 )
         else:  # TV Show
             if ep_icon == "1":  # Series + episode icons
                 # Only use epimage (from extended details) if xdetails=true
                 if use_extended_details and episode_data.get("epimage"):
                     fh.write(
-                        f'\t\t<icon src="{self.ASSETS_BASE_URL}/g/{episode_data["epimage"]}.jpg" />\n'
+                        f'\t\t<icon src="{self.ASSETS_BASE_URL}/{episode_data["epimage"]}.jpg" />\n'
                     )
                 elif episode_data.get("epthumb"):
                     fh.write(
-                        f'\t\t<icon src="{self.ASSETS_BASE_URL}/g/{episode_data["epthumb"]}.jpg" />\n'
+                        f'\t\t<icon src="{self.ASSETS_BASE_URL}/{episode_data["epthumb"]}.jpg" />\n'
                     )
             elif ep_icon == "2":  # Episode icons only
                 if episode_data.get("epthumb"):
                     fh.write(
-                        f'\t\t<icon src="{self.ASSETS_BASE_URL}/g/{episode_data["epthumb"]}.jpg" />\n'
+                        f'\t\t<icon src="{self.ASSETS_BASE_URL}/{episode_data["epthumb"]}.jpg" />\n'
                     )
 
 
