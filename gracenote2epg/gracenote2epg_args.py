@@ -426,8 +426,9 @@ LineupID Auto-Detection:
 
         return config
 
-    def get_system_defaults(self):
-        """Get system-specific default directories with proper DSM6/DSM7 path selection"""
+    def get_system_defaults(self, base_dir_override=None):
+        """Get default directories, rooted at base_dir_override (--basedir) when
+        given, otherwise the system-specific location (DSM6/DSM7 aware)"""
         from pathlib import Path
 
         home = Path.home()
@@ -481,6 +482,10 @@ LineupID Auto-Detection:
             # Standard Linux/Docker
             base_dir = home / "gracenote2epg"
 
+        # --basedir overrides the auto-detected location
+        if base_dir_override is not None:
+            base_dir = Path(base_dir_override)
+
         return {
             "base_dir": base_dir,
             "cache_dir": base_dir / "cache",
@@ -491,9 +496,9 @@ LineupID Auto-Detection:
             "log_file": base_dir / "log" / "gracenote2epg.log",
         }
 
-    def create_directories_with_proper_permissions(self):
+    def create_directories_with_proper_permissions(self, base_dir_override=None):
         """Create required directories with proper 755 permissions"""
-        defaults = self.get_system_defaults()
+        defaults = self.get_system_defaults(base_dir_override)
 
         # Create directories with 755 permissions (rwxr-xr-x)
         for directory in [defaults["cache_dir"], defaults["conf_dir"], defaults["log_dir"]]:

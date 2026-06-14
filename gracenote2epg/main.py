@@ -208,18 +208,16 @@ def main():
         arg_parser = ArgumentParser()
         args = arg_parser.parse_args()
 
-        # Get system defaults
-        defaults = arg_parser.get_system_defaults()
+        # Get system defaults, rooted at --basedir when provided
+        defaults = arg_parser.get_system_defaults(base_dir_override=args.basedir)
 
         # Override defaults with command line arguments
-        args.basedir or defaults["base_dir"]
         config_file = args.config_file or defaults["config_file"]
         xmltv_file = args.output or defaults["xmltv_file"]
         log_file = defaults["log_file"]
 
         # Ensure directories exist
-        arg_parser = ArgumentParser()
-        arg_parser.create_directories_with_proper_permissions()
+        arg_parser.create_directories_with_proper_permissions(base_dir_override=args.basedir)
 
         # Load and validate configuration
         config_manager = ConfigManager(config_file)
