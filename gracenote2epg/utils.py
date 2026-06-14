@@ -87,12 +87,42 @@ class CacheManager:
 
     def __init__(self, cache_dir: Path):
         self.cache_dir = Path(cache_dir)
-        # Create cache directory with proper 755 permissions (rwxr-xr-x)
+        # Series details live in a dedicated subdirectory so the cache root
+        # only holds the handful of guide blocks (YYYYMMDDHH.json.gz), keeping
+        # it small and easy to inspect manually.
+        self.series_dir = self.cache_dir / "series"
+        # Create cache directories with proper 755 permissions (rwxr-xr-x)
+        for directory in (self.cache_dir, self.series_dir):
+            try:
+                directory.mkdir(parents=True, exist_ok=True, mode=0o755)
+            except Exception:
+                # Fallback: create without mode specification (depends on umask)
+                directory.mkdir(parents=True, exist_ok=True)
+        # One-time migration: relocate any legacy flat series files (cached by
+        # older versions directly under the cache root) into series/ so existing
+        # caches are reused instead of re-downloaded.
+        self._migrate_legacy_series_cache()
+
+    def _migrate_legacy_series_cache(self):
+        """Move legacy flat *.json series files into the series subdirectory."""
         try:
-            self.cache_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
-        except Exception:
-            # Fallback: create without mode specification (depends on umask)
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            legacy = [
+                f for f in self.cache_dir.glob("*.json")
+                if f.is_file() and not f.name.endswith(".json.gz")
+            ]
+            if not legacy:
+                return
+            for cache_file in legacy:
+                target = self.series_dir / cache_file.name
+                try:
+                    cache_file.replace(target)
+                except Exception as e:
+                    logging.debug("Could not migrate cached series %s: %s", cache_file.name, e)
+            logging.info(
+                "Migrated %d cached series file(s) into %s", len(legacy), self.series_dir
+            )
+        except Exception as e:
+            logging.debug("Legacy series cache migration skipped: %s", e)
 
     def backup_xmltv(self, xmltv_file: Path) -> Optional[Path]:
         """XMLTV: Always backup previous version"""
@@ -238,23 +268,22 @@ class CacheManager:
             cleaned_count = 0
             kept_count = 0
 
-            # Process show detail files (not guide blocks)
-            for cache_file in self.cache_dir.glob("*.json"):
-                if not cache_file.name.endswith(".json.gz"):  # Exclude compressed guide blocks
-                    series_id = cache_file.stem  # filename without .json
+            # Process show detail files (stored under the series/ subdirectory)
+            for cache_file in self.series_dir.glob("*.json"):
+                series_id = cache_file.stem  # filename without .json
 
-                    if series_id in active_series:
-                        kept_count += 1
-                        logging.debug("Show details kept: %s", series_id)
-                    else:
-                        try:
-                            cache_file.unlink()
-                            logging.debug("Show details removed: %s", series_id)
-                            cleaned_count += 1
-                        except OSError as e:
-                            logging.warning(
-                                "Error removing show details %s: %s", cache_file.name, str(e)
-                            )
+                if series_id in active_series:
+                    kept_count += 1
+                    logging.debug("Show details kept: %s", series_id)
+                else:
+                    try:
+                        cache_file.unlink()
+                        logging.debug("Show details removed: %s", series_id)
+                        cleaned_count += 1
+                    except OSError as e:
+                        logging.warning(
+                            "Error removing show details %s: %s", cache_file.name, str(e)
+                        )
 
             if cleaned_count > 0 or kept_count > 0:
                 logging.info("Show cache cleanup: %d removed, %d kept", cleaned_count, kept_count)
@@ -287,7 +316,7 @@ class CacheManager:
     def save_series_details(self, series_id: str, data: bytes) -> bool:
         """Save series details JSON data"""
         try:
-            file_path = self.cache_dir / f"{series_id}.json"
+            file_path = self.series_dir / f"{series_id}.json"
             with open(file_path, "wb") as f:
                 f.write(data)
             return True
@@ -297,8 +326,8 @@ class CacheManager:
 
     def load_series_details(self, series_id: str) -> Optional[Dict]:
         """Load series details JSON data"""
+        file_path = self.series_dir / f"{series_id}.json"
         try:
-            file_path = self.cache_dir / f"{series_id}.json"
             if file_path.exists() and file_path.stat().st_size > 0:
                 with open(file_path, "rb") as f:
                     return json.loads(f.read())
@@ -306,7 +335,6 @@ class CacheManager:
             logging.warning("Error loading series details %s: %s", series_id, str(e))
             # Remove corrupted file
             try:
-                file_path = self.cache_dir / f"{series_id}.json"
                 if file_path.exists():
                     file_path.unlink()
             except Exception:
