@@ -11,7 +11,8 @@ import urllib.parse
 from typing import Dict, Optional
 
 from .base import OptimizedDownloader, DownloaderStatsMixin
-from ..utils import CacheManager, TimeUtils
+from ..cache import CacheManager
+from ..utils import TimeUtils
 
 
 class GuideDownloader(DownloaderStatsMixin):

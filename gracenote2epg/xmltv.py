@@ -15,7 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
-from .utils import CacheManager, TimeUtils, HtmlUtils
+from .cache import CacheManager
+from .utils import TimeUtils, HtmlUtils
 from .language import LanguageDetector
 
 

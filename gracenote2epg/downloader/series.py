@@ -10,7 +10,7 @@ import logging
 from typing import Dict, List, Optional, Set
 
 from .base import OptimizedDownloader, DownloaderStatsMixin
-from ..utils import CacheManager
+from ..cache import CacheManager
 
 
 class SeriesDownloader(DownloaderStatsMixin):

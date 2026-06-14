@@ -16,9 +16,9 @@ from pathlib import Path
 # Specific imports
 from .args import ArgumentParser
 from .config import ConfigManager
+from .cache import CacheManager
 from .parser import DataParser
 from .tvheadend import TvheadendClient
-from .utils import CacheManager
 from .xmltv import XmltvGenerator
 from .logrotate import LogRotationManager
 

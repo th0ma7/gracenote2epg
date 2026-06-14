@@ -15,7 +15,8 @@ from .downloader import OptimizedDownloader
 from .language import LanguageDetector
 from .parser import DataParser
 from .tvheadend import TvheadendClient
-from .utils import CacheManager, TimeUtils
+from .cache import CacheManager
+from .utils import TimeUtils
 from .xmltv import XmltvGenerator
 from .dictionaries import (
     get_category_translation,
