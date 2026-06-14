@@ -32,6 +32,47 @@ with no change to the generated guide.
   were split into packages; `CacheManager` moved to its own `cache.py` module.
   Behaviour verified byte-for-byte identical against the pre-refactor output.
 
+## [1.6.1] - 2026-02-08
+### Fixed
+- **Program icon**: Changed URL for programme icon migrating away from zap2it.tmsimg.com to www.tvtv.ca
+
+## [1.6.0] - 2025-09-09
+
+### Added
+- **Geographic Resolution**: Intelligent lineup URL generation with automatic location resolution
+  - New `gracenote2epg_lineup.py` module with `LineupManager` and `Geocoder` classes
+  - Optional `pgeocode` integration for automatic city/province resolution from postal codes
+  - Dynamic tvtv.com URL generation based on actual geographic locations
+  - Smart fallback to manual lookup instructions when automatic resolution fails
+- **Enhanced --show-lineup Output**: Improved lineup testing with geographic status indicators
+  - ✅ Status indicator when location is automatically resolved
+  - ⚠️ Warning when manual lookup is required
+
+### Fixed
+- **--show-lineup URLs**: Fixed non-functional validation URLs caused by hardcoded city names
+
+### Technical Details
+- **Optional Dependency**: `pgeocode>=0.4.0` for enhanced geographic resolution
+  - Graceful degradation when pgeocode is not installed
+  - Manual lookup instructions always provided as fallback
+  - No breaking changes for existing installations
+- **Debug Output**: Enhanced debugging support for `--show-lineup --debug`
+  - Geographic resolution status and details
+  - City/province normalization process
+  - Clear indication of automatic vs manual resolution paths
+
+### Installation
+```bash
+# Install with geographic resolution support (recommended)
+pip install gracenote2epg[full]
+
+# Or install geographic resolution only
+pip install gracenote2epg[geocoding]
+
+# Existing installations continue to work without pgeocode
+pip install gracenote2epg  # Basic functionality maintained
+```
+
 ## [1.5.5] - 2025-09-06
 
 ### Fixed
