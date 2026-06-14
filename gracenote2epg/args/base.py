@@ -9,12 +9,10 @@ import argparse
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 from .validator import ArgumentValidator
 from .location import LocationProcessor
 from .path_manager import PathManager
-from .systems import SystemDetector
 
 
 class ArgumentParser:

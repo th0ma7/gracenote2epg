@@ -5,7 +5,6 @@ Handles system-specific default directories, path creation with proper
 permissions, and directory structure management.
 """
 
-import logging
 from pathlib import Path
 from typing import Dict, Optional
 
