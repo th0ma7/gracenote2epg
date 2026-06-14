@@ -294,14 +294,6 @@ class SettingsManager:
             return [s.strip() for s in slist.split(",") if s.strip()]
         return None
 
-    def get_refresh_hours(self, settings: Dict[str, Any]) -> int:
-        """Get cache refresh hours from configuration"""
-        try:
-            return int(settings.get("refresh", "48"))
-        except (ValueError, TypeError):
-            logging.warning("Invalid refresh setting, using default 48 hours")
-            return 48
-
     def needs_extended_download(self, settings: Dict[str, Any]) -> bool:
         """Determine if extended details download is needed"""
         return settings.get("xdetails", False) or settings.get("xdesc", False)
