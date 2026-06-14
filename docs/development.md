@@ -19,6 +19,57 @@ source gracenote_dev/bin/activate  # Linux/Mac
 # gracenote_dev\Scripts\activate   # Windows
 ```
 
+### Runtime vs Development Dependencies
+
+Two distinct sets of dependencies — what is needed to **run** the grabber
+versus what is additionally needed to **develop** it.
+
+#### Runtime (to run the grabber)
+
+| Purpose | Python pkg | Debian pkg | pip extra |
+|---------|-----------|------------|-----------|
+| Core (required) | `requests` | `python3-requests` | *(always)* |
+| Language detection | `langdetect` | `python3-langdetect` | `[langdetect]` |
+| `.po` translation files | `polib` | `python3-polib` | `[translations]` |
+| Geographic lineup resolution | `pgeocode` | `python3-pgeocode`¹ | `[geocoding]` |
+| All optional features | — | — | `[full]` |
+
+¹ `pgeocode` may not be packaged on all Debian releases; install via pip if
+`apt-cache show python3-pgeocode` finds nothing. All three optional libraries
+degrade gracefully — the grabber runs without them, with the matching feature
+disabled.
+
+#### Development (in addition to runtime)
+
+| Purpose | Tool | Debian pkg | Notes |
+|---------|------|------------|-------|
+| Unit tests | `unittest` (stdlib) | *(none)* | `make test-unit` — no install needed |
+| Unit tests (optional runner) | `pytest`, `pytest-cov` | `python3-pytest` | nicer output/coverage |
+| Formatting | `black` | `black` | |
+| Linting | `flake8` | `flake8` | avoid `flake8-black`, `pylint` |
+| Type checking | `mypy` | `python3-mypy` | |
+| Import cleanup | `autoflake` | *(pip)* | not packaged — `pip install autoflake` |
+| Building | `build` | `python3-build` | |
+| Publishing | `twine` | `twine` | optional |
+| XMLTV DTD validation | `xmllint` | `libxml2-utils` | |
+
+**Debian development image (one shot):**
+```bash
+sudo apt update && sudo apt install -y \
+  python3 python3-pip git \
+  python3-requests python3-langdetect python3-polib \
+  python3-pytest flake8 black python3-mypy python3-build twine \
+  libxml2-utils
+# Tools/libs not always packaged on Debian — install via pip as needed:
+pip install autoflake pgeocode
+```
+
+**Runtime-only image (minimal):**
+```bash
+sudo apt install -y python3 python3-requests          # core
+sudo apt install -y python3-langdetect python3-polib  # optional features
+```
+
 ### Development Dependencies
 
 #### Core Development Tools
@@ -237,16 +288,33 @@ make clean autofix format lint test-basic
 
 ### Unit Tests
 
+The suite under `tests/` uses the standard-library `unittest`, so it runs with
+no extra dependencies:
+
 ```bash
-# Run tests with pytest
+# Run the whole suite (no install needed)
+make test-unit
+# or directly
+python3 -m unittest discover -s tests -p "test_*.py" -v
+
+# Run a single module / case
+python3 -m unittest tests.test_helpers
+python3 -m unittest tests.test_helpers.TimezoneOffsetTests
+
+# Optional: run via pytest if installed (it picks up unittest tests as-is)
 pytest tests/
-
-# Run with coverage
-pytest --cov=gracenote2epg tests/
-
-# Run specific test
-pytest tests/test_config.py::test_configuration_parsing
 ```
+
+The `tests/test_xmltv_golden.py` test compares XMLTV generation against a
+committed golden file (`tests/fixtures/xmltv_golden.xml`, timezone-pinned to
+UTC). After an **intended** output-format change, regenerate it with:
+
+```bash
+python3 -m tests.test_xmltv_golden --update-golden
+```
+
+> Note: `tests/baseline/` holds local NAS-sourced data and is git-ignored; it
+> is not required to run the unit tests.
 
 ### Integration Testing
 
