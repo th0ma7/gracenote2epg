@@ -140,7 +140,7 @@ setup(
         "Environment :: Console",
     ],
     # Keywords for PyPI search
-    keywords="xmltv epg tv guide gracenote tvheadend ota cable",
+    keywords="xmltv epg tv guide gracenote tvheadend ota cable geocoding",
     # Project URLs
     project_urls={
         "Bug Reports": "https://github.com/th0ma7/gracenote2epg/issues",
