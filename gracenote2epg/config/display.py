@@ -87,7 +87,7 @@ class ConfigDisplayer:
             print()
 
         # API parameters
-        print(f"🌐 GRACENOTE API URL PARAMETERS:")
+        print(f"🌍 GRACENOTE API URL PARAMETERS:")
         print(f"   lineupId={lineup_config['api_lineup_id']}")
         print(f"   country={country}")
         print(f"   postalCode={clean_postal}")
