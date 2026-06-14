@@ -5,11 +5,11 @@ Handles parsing of TV guide JSON data from gracenote.com, extracting stations
 and episodes information. Contains only parsing logic, no HTTP or caching code.
 """
 
-import calendar
 import json
 import logging
-import time
 from typing import Dict, Optional
+
+from ..utils import TimeUtils
 
 
 class GuideParser:
@@ -92,30 +92,15 @@ class GuideParser:
         """Parse individual episode data from JSON"""
         # Extract and validate start time
         start_time_str = episode.get("startTime", "")
-        if not start_time_str:
+        ep_start = TimeUtils.parse_gracenote_time(start_time_str)
+        if ep_start is None:
             return None
-            
-        try:
-            ep_key = str(
-                calendar.timegm(
-                    time.strptime(start_time_str, "%Y-%m-%dT%H:%M:%SZ")
-                )
-            )
-        except (ValueError, TypeError):
-            return None
-        
+        ep_key = str(ep_start)
+
         # Extract end time
         end_time_str = episode.get("endTime", "")
-        ep_end = None
-        if end_time_str:
-            try:
-                ep_end = str(
-                    calendar.timegm(
-                        time.strptime(end_time_str, "%Y-%m-%dT%H:%M:%SZ")
-                    )
-                )
-            except (ValueError, TypeError):
-                pass
+        ep_end_ts = TimeUtils.parse_gracenote_time(end_time_str)
+        ep_end = str(ep_end_ts) if ep_end_ts is not None else None
         
         # Get program information
         program = episode.get("program", {})

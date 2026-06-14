@@ -5,11 +5,10 @@ Handles parsing of extended series details from gracenote.com API responses,
 applying enhanced metadata to episode data. Contains only parsing logic.
 """
 
-import calendar
 import logging
-import re
-import time
 from typing import Dict, Optional
+
+from ..utils import TimeUtils
 
 
 class SeriesParser:
@@ -121,18 +120,14 @@ class SeriesParser:
 
     def _extract_original_air_date(self, episode_data: Dict, airing: Dict, series_id: str):
         """Extract and format original air date"""
-        try:
-            orig_date = airing.get("originalAirDate")
-            if orig_date and orig_date != "":
-                # Handle date format - fix Z suffix if needed
-                ep_oad = re.sub("Z", ":00Z", orig_date)
-                timestamp = calendar.timegm(
-                    time.strptime(ep_oad, "%Y-%m-%dT%H:%M:%SZ")
-                )
+        orig_date = airing.get("originalAirDate")
+        if orig_date:
+            timestamp = TimeUtils.parse_gracenote_time(orig_date, fix_missing_seconds=True)
+            if timestamp is not None:
                 episode_data["epoad"] = str(timestamp)
                 logging.debug("Applied original air date for %s: %s", series_id, orig_date)
-        except Exception as e:
-            logging.debug("Could not parse original air date for %s: %s", series_id, str(e))
+            else:
+                logging.debug("Could not parse original air date for %s: %s", series_id, orig_date)
     
     def _check_tba_in_airing(self, airing: Dict, series_id: str):
         """Check for TBA (To Be Announced) content in airing data"""

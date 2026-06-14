@@ -5,6 +5,7 @@ Provides cache management, time utilities, and general helper functions
 for the gracenote2epg system. Updated with unified retention policies for XMLTV backups.
 """
 
+import calendar
 import gzip
 import html
 import json
@@ -56,6 +57,23 @@ class TimeUtils:
             end_dt = end_dt + timedelta(hours=3)
 
         return start_dt, end_dt
+
+    @staticmethod
+    def parse_gracenote_time(value: Optional[str], fix_missing_seconds: bool = False) -> Optional[int]:
+        """Convert a Gracenote ISO-8601 UTC timestamp (YYYY-MM-DDTHH:MM:SSZ) to
+        epoch seconds, or None if it is empty/unparseable.
+
+        Set fix_missing_seconds=True for originalAirDate values that omit the
+        seconds field (inserts ':00' before the trailing Z).
+        """
+        if not value:
+            return None
+        if fix_missing_seconds:
+            value = value.replace("Z", ":00Z")
+        try:
+            return calendar.timegm(time.strptime(value, "%Y-%m-%dT%H:%M:%SZ"))
+        except (ValueError, TypeError):
+            return None
 
 
 class CacheManager:
