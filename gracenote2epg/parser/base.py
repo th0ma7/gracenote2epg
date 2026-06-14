@@ -93,10 +93,9 @@ class DataParser:
         grid_time = grid_time_start
         
         for count in range(day_hours):
-            # Generate filename (same logic as downloader)
+            # Generate filename (shared convention with the downloader)
             from ..utils import TimeUtils
-            standard_block_time = TimeUtils.get_standard_block_time(grid_time)
-            filename = standard_block_time.strftime("%Y%m%d%H") + ".json.gz"
+            filename = TimeUtils.guide_block_filename(grid_time)
             
             # Load and parse block (cached data)
             content = self.cache_manager.load_guide_block(filename)

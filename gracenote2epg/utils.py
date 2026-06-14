@@ -25,6 +25,15 @@ class TimeUtils:
         return standard_dt
 
     @staticmethod
+    def guide_block_filename(grid_time: float) -> str:
+        """Cache filename for the 3-hour guide block covering ``grid_time``.
+
+        Single source of truth for the YYYYMMDDHH.json.gz convention shared by
+        the downloader (writes blocks) and the parser (reads them).
+        """
+        return TimeUtils.get_standard_block_time(grid_time).strftime("%Y%m%d%H") + ".json.gz"
+
+    @staticmethod
     def conv_time(timestamp: float) -> str:
         """Convert timestamp to XMLTV time format (local time like zap2epg)"""
         return time.strftime("%Y%m%d%H%M%S", time.localtime(int(timestamp)))

@@ -79,8 +79,7 @@ class GuideDownloader(DownloaderStatsMixin):
                               refresh_hours: int) -> bool:
         """Download a single guide block with caching logic"""
         # Generate filename
-        standard_block_time = TimeUtils.get_standard_block_time(grid_time)
-        filename = standard_block_time.strftime("%Y%m%d%H") + ".json.gz"
+        filename = TimeUtils.guide_block_filename(grid_time)
         
         # Build URL
         url = self._build_gracenote_url(lineup_config, grid_time)
