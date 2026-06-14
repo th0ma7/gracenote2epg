@@ -36,11 +36,17 @@ class TimeUtils:
 
     @staticmethod
     def get_timezone_offset() -> str:
-        """Get timezone offset for XMLTV format (exactly like zap2epg)"""
+        """Get local timezone offset as a signed XMLTV ``±HHMM`` string.
+
+        Conforms to the XMLTV date format regardless of the host timezone:
+        always emits a sign and handles offsets with non-zero minutes
+        (e.g. Newfoundland -0330, India +0530). UTC yields ``+0000``.
+        """
         is_dst = time.daylight and time.localtime().tm_isdst > 0
-        # Use the exact same formula as zap2epg
-        tz_offset_hours = -(time.altzone if is_dst else time.timezone) / 3600
-        return "%.2d%.2d" % (tz_offset_hours, 0)
+        offset_seconds = -(time.altzone if is_dst else time.timezone)
+        sign = "+" if offset_seconds >= 0 else "-"
+        offset_seconds = abs(offset_seconds)
+        return "%s%02d%02d" % (sign, offset_seconds // 3600, (offset_seconds % 3600) // 60)
 
     @staticmethod
     def calculate_guide_time_range(grid_time_start: float, guide_days: int) -> tuple:
