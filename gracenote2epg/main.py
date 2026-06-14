@@ -257,6 +257,13 @@ def main():
         if logging_config["console"]:
             logging.info("Console logging enabled - logs also displayed on stderr")
 
+        # Show where everything lives -- helps when --basedir/--config-file/--output are used
+        logging.info("Locations:")
+        logging.info("  Configuration: %s", config_file)
+        logging.info("  Cache:         %s", defaults["cache_dir"])
+        logging.info("  Log file:      %s", log_file)
+        logging.info("  XMLTV output:  %s", xmltv_file)
+
         # Log command line processing BEFORE config summary
         log_command_line_processing(args)
 
