@@ -1,12 +1,9 @@
 """
-gracenote2epg.gracenote2epg_logrotate - Built-in log rotation
+gracenote2epg.logrotate.handler - copytruncate timed rotating file handler
 
-Provides log rotation functionality with copytruncate strategy to maintain
-compatibility with 'tail -f' and other log monitoring tools.
-
-ENHANCED VERSION: Multi-period rotation for daily/weekly/monthly modes.
-Analyzes actual log content and separates complete periods into individual backup files.
-Updated to use unified retention policies configuration.
+Custom logging handler that rotates with a copytruncate strategy (keeps the
+log file open so `tail -f` survives) and performs multi-period catch-up
+rotation at startup. Period/date arithmetic lives in .periods.
 """
 
 import logging
@@ -14,10 +11,11 @@ import logging.handlers
 import re
 import shutil
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Tuple
 
+from . import periods
 
 class CopyTruncateTimedRotatingFileHandler(logging.handlers.BaseRotatingHandler):
     """
@@ -89,48 +87,7 @@ class CopyTruncateTimedRotatingFileHandler(logging.handlers.BaseRotatingHandler)
 
     def _compute_next_rollover(self) -> float:
         """Compute the next rollover time."""
-        now = time.time()
-
-        if self.when == "MIDNIGHT" or self.when == "DAILY":
-            # Next midnight
-            current_time = datetime.fromtimestamp(now)
-            next_rollover = current_time.replace(
-                hour=0, minute=0, second=0, microsecond=0
-            ) + timedelta(days=1)
-            return next_rollover.timestamp()
-
-        elif self.when == "WEEKLY":
-            # Next Sunday at midnight (Sunday = first day of week in US system)
-            current_time = datetime.fromtimestamp(now)
-            # Calculate days until next Sunday (weekday() returns 0=Monday, 6=Sunday)
-            days_until_sunday = (6 - current_time.weekday()) % 7
-            if days_until_sunday == 0:  # Today is Sunday
-                days_until_sunday = 7  # Next Sunday
-            next_rollover = current_time.replace(
-                hour=0, minute=0, second=0, microsecond=0
-            ) + timedelta(days=days_until_sunday)
-            return next_rollover.timestamp()
-
-        elif self.when == "MONTHLY":
-            # Next first day of month at midnight
-            current_time = datetime.fromtimestamp(now)
-            if current_time.month == 12:
-                next_rollover = current_time.replace(
-                    year=current_time.year + 1,
-                    month=1,
-                    day=1,
-                    hour=0,
-                    minute=0,
-                    second=0,
-                    microsecond=0,
-                )
-            else:
-                next_rollover = current_time.replace(
-                    month=current_time.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0
-                )
-            return next_rollover.timestamp()
-
-        return now + self.interval_seconds
+        return periods.next_rollover_at(self.when, self.interval_seconds)
 
     def _check_startup_rotation(self):
         """Check if rotation is needed at startup (catch-up rotation) - MULTI-PERIOD VERSION"""
@@ -260,66 +217,18 @@ class CopyTruncateTimedRotatingFileHandler(logging.handlers.BaseRotatingHandler)
             return {}
 
     def _get_period_info(self, entry_datetime: datetime) -> Tuple[datetime, datetime, str]:
-        """
-        Get period start, end, and suffix for given datetime
-
-        Returns:
-            tuple: (period_start, period_end, period_suffix)
-        """
-        if self.when == "MIDNIGHT" or self.when == "DAILY":
-            # Daily: midnight to midnight
-            period_start = entry_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
-            period_end = period_start + timedelta(days=1) - timedelta(seconds=1)
-            period_suffix = period_start.strftime(self.suffix)
-
-        elif self.when == "WEEKLY":
-            # Weekly: Sunday to Saturday
-            period_start = self._get_week_start(entry_datetime)
-            period_end = period_start + timedelta(days=7) - timedelta(seconds=1)
-            period_suffix = period_start.strftime(self.suffix)
-
-        elif self.when == "MONTHLY":
-            # Monthly: first to last day of month
-            period_start = entry_datetime.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            if period_start.month == 12:
-                next_month = period_start.replace(year=period_start.year + 1, month=1)
-            else:
-                next_month = period_start.replace(month=period_start.month + 1)
-            period_end = next_month - timedelta(seconds=1)
-            period_suffix = period_start.strftime(self.suffix)
-
-        return period_start, period_end, period_suffix
+        """Get period start, end, and suffix for given datetime."""
+        return periods.get_period_info(self.when, self.suffix, entry_datetime)
 
     def _is_period_complete(
         self, period_start: datetime, period_end: datetime, current_datetime: datetime
     ) -> bool:
         """Check if a period is complete (not the current period)"""
-        if self.when == "MIDNIGHT" or self.when == "DAILY":
-            # Complete if not today
-            return period_start.date() < current_datetime.date()
-
-        elif self.when == "WEEKLY":
-            # Complete if not current week
-            current_week_start = self._get_week_start(current_datetime)
-            return period_start < current_week_start
-
-        elif self.when == "MONTHLY":
-            # Complete if not current month
-            return (period_start.year, period_start.month) < (
-                current_datetime.year,
-                current_datetime.month,
-            )
-
-        return False
+        return periods.is_period_complete(self.when, period_start, period_end, current_datetime)
 
     def _get_week_start(self, dt: datetime) -> datetime:
         """Get the start of the week (last Sunday at midnight) for given datetime"""
-        # weekday() returns 0=Monday, 6=Sunday
-        days_since_sunday = (dt.weekday() + 1) % 7  # Convert to days since Sunday
-        week_start = dt.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(
-            days=days_since_sunday
-        )
-        return week_start
+        return periods.get_week_start(dt)
 
     def _perform_multi_period_rotation(self, periods_data: Dict[str, Dict]):
         """
@@ -522,136 +431,3 @@ class CopyTruncateTimedRotatingFileHandler(logging.handlers.BaseRotatingHandler)
 
         except Exception as e:
             logging.warning("Error during backup cleanup: %s", str(e))
-
-
-class LogRotationManager:
-    """Manages log rotation configuration and setup with unified retention policies."""
-
-    @staticmethod
-    def create_rotating_handler(log_file: Path, retention_config: dict) -> logging.Handler:
-        """
-        Create appropriate log handler based on unified retention configuration.
-
-        Args:
-            log_file: Path to log file
-            retention_config: Unified retention configuration from config manager
-
-        Returns:
-            Configured logging handler
-        """
-        if not retention_config.get("enabled", False):
-            # Standard file handler without rotation
-            handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
-            logging.debug("Log rotation disabled - using standard FileHandler")
-            return handler
-
-        # Extract rotation parameters from unified config
-        when = retention_config.get("interval", "daily").lower()
-        backup_count = retention_config.get("keep_files", 7)
-
-        # Map configuration values to handler parameters
-        when_mapping = {"daily": "midnight", "weekly": "weekly", "monthly": "monthly"}
-
-        handler_when = when_mapping.get(when, "midnight")
-
-        # Create rotating handler
-        handler = CopyTruncateTimedRotatingFileHandler(
-            filename=str(log_file),
-            when=handler_when,
-            interval=1,
-            backup_count=backup_count,
-            encoding="utf-8",
-        )
-
-        # Log details about the unified cache and retention policy
-        log_retention_days = retention_config.get("log_retention_days", 30)
-        if log_retention_days == 0:
-            retention_desc = "unlimited"
-        else:
-            retention_desc = f"{log_retention_days} days"
-
-        logging.info(
-            "Log rotation enabled: %s rotation, %s retention (%d backup files)",
-            when,
-            retention_desc,
-            backup_count,
-        )
-
-        # Log settings used for transparency
-        logging.debug("Cache and retention policy settings:")
-        logging.debug("  logrotate: %s", retention_config.get("logrotate_setting", "true"))
-        logging.debug("  relogs: %s", retention_config.get("relogs_setting", "30"))
-
-        return handler
-
-    @staticmethod
-    def trigger_startup_rotation(handler) -> bool:
-        """
-        Manually trigger startup rotation check after logging is configured
-
-        Args:
-            handler: The log handler (should be CopyTruncateTimedRotatingFileHandler)
-
-        Returns:
-            bool: True if rotation was performed
-        """
-        if hasattr(handler, "_check_startup_rotation"):
-            try:
-                # Call the rotation check method directly
-                handler._check_startup_rotation()
-                return True
-            except Exception as e:
-                logging.warning("Error during manual startup rotation trigger: %s", str(e))
-                return False
-        return False
-
-    @staticmethod
-    def get_rotation_status(log_file: Path, retention_config: dict) -> dict:
-        """
-        Get current rotation status information with unified cache and retention details.
-
-        Args:
-            log_file: Path to log file
-            retention_config: Unified cache and retention configuration
-
-        Returns:
-            Dictionary with rotation status information
-        """
-        if not retention_config.get("enabled", False):
-            return {"enabled": False}
-
-        status = {
-            "enabled": True,
-            "interval": retention_config.get("interval", "daily"),
-            "keep_files": retention_config.get("keep_files", 7),
-            "log_retention_days": retention_config.get("log_retention_days", 30),
-            "xmltv_retention_days": retention_config.get("xmltv_retention_days", 7),
-            "current_log_size": 0,
-            "backup_files_count": 0,
-            "week_start_day": "Sunday",  # Document that we use Sunday as week start
-            # Include original settings for reference
-            "logrotate_setting": retention_config.get("logrotate_setting", "true"),
-            "relogs_setting": retention_config.get("relogs_setting", "30"),
-            "rexmltv_setting": retention_config.get("rexmltv_setting", "7"),
-        }
-
-        # Get current log file size
-        if log_file.exists():
-            status["current_log_size"] = log_file.stat().st_size
-
-        # Count backup files
-        try:
-            log_dir = log_file.parent
-            log_basename = log_file.name
-            backup_count = 0
-
-            for file_path in log_dir.glob(f"{log_basename}.*"):
-                if str(file_path) != str(log_file):
-                    backup_count += 1
-
-            status["backup_files_count"] = backup_count
-
-        except Exception:
-            status["backup_files_count"] = 0
-
-        return status
