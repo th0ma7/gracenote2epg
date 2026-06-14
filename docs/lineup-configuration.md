@@ -101,20 +101,16 @@ tv_grab_gracenote2epg --show-lineup --postal J3B1M4
 tv_grab_gracenote2epg --show-lineup --zip 90210 --debug
 ```
 
-## 🆕 Enhanced Geographic Resolution
+## 🌍 Geographic Resolution
 
-gracenote2epg now includes **intelligent geographic resolution** for more accurate lineup URLs:
+gracenote2epg resolves your postal/ZIP code to the correct city and
+province/state to build accurate tvtv.com validation URLs.
 
-### ✅ Automatic Resolution
-When `pgeocode` is installed, the system automatically resolves your postal code to the correct city and province:
-
-```bash
-# Install with geographic resolution (recommended)
-pip install gracenote2epg[full]
-
-# Or install just the geocoding feature
-pip install gracenote2epg[geocoding]
-```
+### ✅ Built-in (no extra dependency)
+Since 2.0.0 this resolution is **built in**, using a small bundled GeoNames
+dataset read with the standard library — there is nothing extra to install
+(the former `pgeocode`/`pandas`/`numpy` dependency was removed). It affects only
+the `--show-lineup` validation URLs, never the downloaded guide.
 
 ### 📍 Status Indicators
 The `--show-lineup` command now shows the geographic resolution status:
@@ -138,13 +134,12 @@ The `--show-lineup` command now shows the geographic resolution status:
 ```
 
 ### 🔄 Graceful Fallback
-- **Without pgeocode**: Manual lookup instructions are always provided
-- **Resolution fails**: Automatic fallback to manual lookup process
-- **No breaking changes**: Existing installations continue to work normally
+- **Resolution fails** (rare/unknown code): automatic fallback to manual lookup instructions
+- **No breaking changes**: existing installations continue to work normally
 
 ## 📊 Example Output
 
-### Enhanced Normal Mode (with pgeocode)
+### Normal Mode (resolved)
 ```
 🌍 GRACENOTE API URL PARAMETERS:
    lineupId=CAN-OTAJ3B1M4-DEFAULT
@@ -164,7 +159,7 @@ The `--show-lineup` command now shows the geographic resolution status:
    https://tvlistings.gracenote.com/api/grid?aid=orbebb&country=CAN&postalCode=J3B1M4&time=1755432000&timespan=3&isOverride=true&userId=-&lineupId=CAN-OTAJ3B1M4-DEFAULT&headendId=lineupId
 ```
 
-### Legacy Mode (without pgeocode)
+### Normal Mode (US example)
 ```
 🌍 GRACENOTE API URL PARAMETERS:
    lineupId=USA-OTA90210-DEFAULT
@@ -172,12 +167,8 @@ The `--show-lineup` command now shows the geographic resolution status:
    postalCode=90210
 
 ✅ VALIDATION URLs:
-   Status: ⚠️ Unable to automatically resolve location for 90210. Please use manual lookup instructions below.
-   Manual lookup required:
-     1. Go to https://www.tvtv.us/
-     2. Enter ZIP code: 90210
-     3. Click 'Broadcast' → 'Local Over the Air'
-     4. Look for 'luUSA-OTA90210' in the URL
+   Direct URL: https://www.tvtv.us/ca/beverly-hills/90210/luUSA-OTA90210
+   Status: ✅ Location automatically resolved (Beverly Hills, CA)
 
 🔗 GRACENOTE API URL FOR TESTING:
    https://tvlistings.gracenote.com/api/grid?aid=orbebb&country=USA&postalCode=90210&time=1755432000&timespan=3&isOverride=true&userId=-&lineupId=USA-OTA90210-DEFAULT&headendId=lineupId
@@ -378,14 +369,10 @@ tv_grab_gracenote2epg --lineupid CAN-OTAJ3B1M4 --debug --console
 
 ### Geographic Resolution Troubleshooting
 ```bash
-# Check if pgeocode is installed
-python -c "import pgeocode; print('pgeocode available')"
-
-# Install geographic resolution support
-pip install gracenote2epg[geocoding]
-
-# Test geographic resolution
+# Test geographic resolution (built in, no extra dependency)
 tv_grab_gracenote2epg --show-lineup --postal J3B1M4 --debug
 ```
+If a code does not resolve, `--show-lineup` falls back to manual lookup
+instructions; this never affects the downloaded guide.
 
 The `--show-lineup` command with enhanced geographic resolution is your best friend for lineup configuration troubleshooting! 🚀

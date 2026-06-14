@@ -58,21 +58,15 @@ setup(
         "translations": [
             "polib>=1.1.0",
         ],
-        # Geographic resolution of postal/ZIP codes for lineup URLs
-        "geocoding": [
-            "pgeocode>=0.4.0",
-        ],
         # All functionalities (recommended)
         "full": [
             "langdetect>=1.0.9",
             "polib>=1.1.0",
-            "pgeocode>=0.4.0",
         ],
         # Development
         "dev": [
             "langdetect>=1.0.9",
             "polib>=1.1.0",
-            "pgeocode>=0.4.0",
             "pytest>=6.0",
             "flake8>=3.8",
             "black>=21.0",
@@ -100,6 +94,7 @@ setup(
         "gracenote2epg": [
             "locales/*/LC_MESSAGES/*.po",
             "locales/*.pot",
+            "data/*.csv.gz",
         ],
     },
     # Include package data

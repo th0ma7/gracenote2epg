@@ -1,7 +1,7 @@
 # Makefile for gracenote2epg development
 # Provides convenient shortcuts for common development tasks
 
-.PHONY: help clean autofix format lint test-unit test test-basic test-full build install-dev check-deps show-dist all
+.PHONY: help clean autofix format lint test-unit test test-basic test-full geodata build install-dev check-deps show-dist all
 
 # Default target
 help:
@@ -17,6 +17,7 @@ help:
 	@echo "  test-basic   Basic functionality test"
 	@echo "  test-full    Full distribution test"
 	@echo "  test         Alias for test-full"
+	@echo "  geodata      Regenerate the bundled postal dataset (run before a release, then commit)"
 	@echo "  build        Build distributions (wheel and source)"
 	@echo "  install-dev  Install in development mode"
 	@echo "  check-deps   Check and install development dependencies"
@@ -58,6 +59,10 @@ test-full:
 	@./scripts/test-distribution.bash --full
 
 test: test-full
+
+geodata:
+	@python3 scripts/build-geodata.py
+	@echo "Now review and commit gracenote2epg/data/geopostal.csv.gz"
 
 build:
 	@python3 -m build

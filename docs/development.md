@@ -31,13 +31,12 @@ versus what is additionally needed to **develop** it.
 | Core (required) | `requests` | `python3-requests` | *(always)* |
 | Language detection | `langdetect` | `python3-langdetect` | `[langdetect]` |
 | `.po` translation files | `polib` | `python3-polib` | `[translations]` |
-| Geographic lineup resolution | `pgeocode` | `python3-pgeocode`¹ | `[geocoding]` |
 | All optional features | — | — | `[full]` |
 
-¹ `pgeocode` may not be packaged on all Debian releases; install via pip if
-`apt-cache show python3-pgeocode` finds nothing. All three optional libraries
-degrade gracefully — the grabber runs without them, with the matching feature
-disabled.
+The optional libraries degrade gracefully — the grabber runs without them, with
+the matching feature disabled. Geographic lineup resolution (city/province for
+`--show-lineup` URLs) is **built in** since 2.0.0 via a small bundled GeoNames
+dataset, so it no longer needs `pgeocode` (and its `pandas`/`numpy` chain).
 
 #### Development (in addition to runtime)
 
@@ -60,8 +59,8 @@ sudo apt update && sudo apt install -y \
   python3-requests python3-langdetect python3-polib \
   python3-pytest flake8 black python3-mypy python3-build twine \
   libxml2-utils
-# Tools/libs not always packaged on Debian — install via pip as needed:
-pip install autoflake pgeocode
+# Tools not always packaged on Debian — install via pip as needed:
+pip install autoflake
 ```
 
 **Runtime-only image (minimal):**
