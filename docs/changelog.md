@@ -5,6 +5,33 @@ All notable changes to gracenote2epg are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - Unreleased
+
+Major maintainability refactor: the monolithic modules were split into focused
+packages (`config/`, `args/`, `parser/`, `downloader/`, `xmltv/`, `logrotate/`)
+with no change to the generated guide.
+
+### Added
+- **Cache layout**: extended series details are now stored in a `series/`
+  subdirectory, keeping the cache root limited to guide blocks for easier
+  inspection. Legacy flat caches are migrated automatically on first run (no
+  re-download).
+
+### Fixed
+- **Timezone offset**: XMLTV times now always carry a standard signed `±HHMM`
+  offset. UTC hosts previously emitted `0000` (no sign), and offsets with
+  non-zero minutes (e.g. Newfoundland `-0330`, India `+0530`) were truncated.
+- **Spurious config backup**: the configuration file is no longer backed up and
+  rewritten on every run when nothing changed.
+- **`--basedir`**: now honoured for the config, cache, log and XMLTV locations.
+
+### Changed
+- **Startup logging**: the active config, cache, log and XMLTV paths are now
+  shown at startup (log and `--console`).
+- **Internal structure**: `xmltv.py` (947 lines) and `logrotate.py` (657 lines)
+  were split into packages; `CacheManager` moved to its own `cache.py` module.
+  Behaviour verified byte-for-byte identical against the pre-refactor output.
+
 ## [1.5.5] - 2025-09-06
 
 ### Fixed

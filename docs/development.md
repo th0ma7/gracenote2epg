@@ -94,7 +94,18 @@ gracenote2epg/
 ├── gracenote2epg/           # Main package
 │   ├── __init__.py          # Package version and exports
 │   ├── __main__.py          # Entry point for -m execution
-│   ├── gracenote2epg_*.py   # Core modules
+│   ├── main.py              # Orchestration / CLI entry
+│   ├── config/              # Configuration: parsing, validation, migration, lineup
+│   ├── args/                # CLI arguments, system defaults, path/location handling
+│   ├── parser/              # Guide + series JSON parsing
+│   ├── downloader/          # Guide + series HTTP download with caching
+│   ├── xmltv/               # XMLTV generation (stations, programme, descriptions…)
+│   ├── logrotate/           # Built-in copytruncate log rotation
+│   ├── cache.py             # CacheManager (guide blocks + series/ details)
+│   ├── utils.py             # TimeUtils + HtmlUtils
+│   ├── language.py          # Language detection
+│   ├── tvheadend.py         # TVheadend integration
+│   ├── dictionaries.py      # Category/term translations
 │   └── locales/             # Translation files
 ├── tv_grab_gracenote2epg    # XMLTV wrapper script
 ├── gracenote2epg.xml        # Default configuration template
@@ -411,8 +422,8 @@ python -c "import gracenote2epg; print('OK')"
 ```bash
 # Test configuration parsing
 python -c "
-from gracenote2epg.gracenote2epg_config import ConfigManager
-config = ConfigManager()
+from gracenote2epg.config import ConfigManager
+config = ConfigManager('conf/gracenote2epg.xml')
 print('Configuration loaded successfully')
 "
 ```

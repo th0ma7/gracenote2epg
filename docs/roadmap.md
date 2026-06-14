@@ -258,7 +258,7 @@ This section outlines new features and enhancements to the XMLTV output. Include
 - Distinguish between series vs episode thumbnails
 - Add icon type attributes where appropriate
 
-**Location:** `gracenote2epg_xmltv.py` - enhance `_write_program_icons()`
+**Location:** `xmltv/media.py` - enhance `_write_program_icons()`
 
 ```python
 # Available data:
@@ -303,7 +303,7 @@ isFinale = true/false
 - Create series information URLs using seriesId
 - Add conditional URL output (only when extended details enabled)
 
-**Location:** `gracenote2epg_xmltv.py` - new method `_write_program_urls()`
+**Location:** `xmltv/programme.py` - new method `_write_program_urls()`
 
 ```python
 # URL construction:
@@ -381,7 +381,7 @@ series_url = f"https://tvlistings.gracenote.com/series/{series_id}"
 - Performance impact assessment for large guide datasets
 
 ### Configuration Integration
-- Add new settings to `VALID_SETTINGS` in `gracenote2epg_config.py`
+- Add new settings to `VALID_SETTINGS` in `config/validation.py`
 - Consider grouping related enhancements under feature flags
 - Document new configuration options
 
@@ -402,30 +402,30 @@ series_url = f"https://tvlistings.gracenote.com/series/{series_id}"
 
 ## B. CODE REFACTORING & MAINTAINABILITY
 
-### 1. Split Large Modules ⭐ HIGH PRIORITY
-**Current Issues:**
+### 1. Split Large Modules — ✅ COMPLETED (2.0.0)
+The former monolithic modules were split into focused packages: `args/`,
+`config/`, `parser/`, `downloader/`, `xmltv/` and `logrotate/`, plus a
+dedicated `cache.py`. Behaviour was verified byte-for-byte identical against
+the pre-refactor output. The original motivation is kept below for reference.
+
+**Former Issues (resolved):**
 - `gracenote2epg_args.py`: 800+ lines (argument parsing, validation, system detection)
 - `gracenote2epg_config.py`: 1000+ lines (config management, migration, lineup logic)
 - `gracenote2epg_xmltv.py`: `_print_episodes()` method 300+ lines
 
-**Proposed Structure:**
+**Resulting Structure:**
 ```
 gracenote2epg/
-├── args/
-│   ├── __init__.py
-│   ├── parser.py           # Main ArgumentParser (simplified)
-│   ├── validators.py       # PostalCodeValidator, validation logic
-│   └── system_detector.py  # SystemDetector for Synology/Raspberry Pi
-├── config/
-│   ├── __init__.py
-│   ├── manager.py          # Main ConfigManager (simplified)
-│   ├── migration.py        # ConfigMigrator for old versions
-│   └── lineup.py           # LineupManager for lineup logic
-└── xmltv/
-    ├── __init__.py
-    ├── generator.py        # Main XmltvGenerator (simplified)
-    ├── episode_processor.py # EpisodeProcessor
-    └── xml_builder.py      # EpisodeXmlBuilder
+├── args/         # base parser, validator, location, path_manager, systems/
+├── config/       # base (ConfigManager), validation, settings, migration,
+│                 # lineup, retention, display
+├── parser/       # base, guide, series
+├── downloader/   # base (HTTP + stats mixin), guide, series
+├── xmltv/        # generator + stations/programme/descriptions/credits/
+│                 # categories/media mixins
+├── logrotate/    # handler, manager, periods (pure date math)
+├── cache.py      # CacheManager (guide blocks + series/ details)
+└── utils.py      # TimeUtils + HtmlUtils
 ```
 
 **Benefits:** Better maintainability, easier testing, clearer separation of concerns
