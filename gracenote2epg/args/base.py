@@ -365,11 +365,11 @@ LineupID Auto-Detection:
             
         return config
     
-    def get_system_defaults(self):
-        """Get system-specific default directories"""
-        return self.path_manager.get_system_defaults()
-    
-    def create_directories_with_proper_permissions(self):
+    def get_system_defaults(self, base_dir=None):
+        """Get default directories, rooted at base_dir (--basedir) when given"""
+        return self.path_manager.get_system_defaults(base_dir)
+
+    def create_directories_with_proper_permissions(self, base_dir=None):
         """Create required directories with proper permissions"""
-        defaults = self.get_system_defaults()
+        defaults = self.get_system_defaults(base_dir)
         self.path_manager.create_directories(defaults)

@@ -204,8 +204,8 @@ def main():
         arg_parser = ArgumentParser()
         args = arg_parser.parse_args()
 
-        # Get system defaults
-        defaults = arg_parser.get_system_defaults()
+        # Get system defaults, rooted at --basedir when provided
+        defaults = arg_parser.get_system_defaults(base_dir=args.basedir)
 
         # Override defaults with command line arguments
         config_file = args.config_file or defaults["config_file"]
@@ -213,7 +213,7 @@ def main():
         log_file = defaults["log_file"]
 
         # Ensure directories exist
-        arg_parser.create_directories_with_proper_permissions()
+        arg_parser.create_directories_with_proper_permissions(base_dir=args.basedir)
 
         # Load and validate configuration
         config_manager = ConfigManager(config_file)

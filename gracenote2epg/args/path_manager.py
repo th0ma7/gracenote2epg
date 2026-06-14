@@ -7,7 +7,7 @@ permissions, and directory structure management.
 
 import logging
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from .systems import SystemDetector
 
@@ -16,20 +16,23 @@ class PathManager:
     """Manages system-specific paths and directory creation"""
     
     @staticmethod
-    def get_system_defaults() -> Dict[str, Path]:
+    def get_system_defaults(base_dir: Optional[Path] = None) -> Dict[str, Path]:
         """
-        Get system-specific default directories
-        
+        Get default directories, rooted at base_dir when given (--basedir),
+        otherwise at the system-specific location.
+
         Returns:
             Dict containing base_dir, cache_dir, conf_dir, log_dir, and file paths
         """
-        home = Path.home()
-        
-        # Use new SystemDetector orchestrator
-        detector = SystemDetector()
-        detector.detect_system()  # Run detection
-        base_dir = detector.get_base_path(home)
-        
+        if base_dir is None:
+            home = Path.home()
+            # Use new SystemDetector orchestrator
+            detector = SystemDetector()
+            detector.detect_system()  # Run detection
+            base_dir = detector.get_base_path(home)
+        else:
+            base_dir = Path(base_dir)
+
         return {
             "base_dir": base_dir,
             "cache_dir": base_dir / "cache",
