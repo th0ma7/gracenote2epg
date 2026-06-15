@@ -87,5 +87,16 @@ safety backstop for cold/full runs.
 - [x] Wired into `SeriesDownloader` behind the `dlworkers` config (1=sequential,
       2-8=fixed, `auto`=4 + self-regulating governor; default `auto`). Schema
       bumped to **version 7**. Live end-to-end: 24 series 15.4s → 4.5s (~3.4×).
-- [ ] Optional: extend to guide blocks; stress-test a large (500+) cold run with
-      parallelism to confirm the keep-alive pattern stays under the WAF.
+- [x] Extended to guide blocks (same `dlworkers`); grid switched to HTTPS.
+- [x] **Stress test (500 series, 4 keep-alive workers): 498 OK, 0 rate-limited,
+      no block.** The governor ramped 5→20 req/s and held at 20 through all 500.
+      Confirms the old ~300-500 block was connection churn (urllib new connection
+      per request × parallel), not request volume — keep-alive workers avoid it.
+
+### Notes / possible follow-ups
+
+- The parallel `execute()` makes a single attempt (no per-request retry); the
+  sequential path retries. On a cold run ~0.4% of series may fail transiently
+  (e.g. giant 1.5 MB responses exceeding the timeout); they are simply
+  re-attempted on the next run (not cached). Adding a light retry to `execute`
+  would close this gap if desired.
