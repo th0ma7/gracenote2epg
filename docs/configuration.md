@@ -23,7 +23,7 @@ gracenote2epg auto-detects your system and uses appropriate directories:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="6">
+<settings version="7">
   <!-- Basic guide settings -->
   <setting id="zipcode">92101</setting>                        <!-- US ZIP or Canadian postal code -->
   <setting id="lineupid">auto</setting>                        <!-- Lineup configuration -->
@@ -58,6 +58,9 @@ gracenote2epg auto-detects your system and uses appropriate directories:
   <setting id="relogs">30</setting>                            <!-- Log retention: days(number) or weekly|monthly|quarterly -->
   <setting id="rexmltv">7</setting>                            <!-- XMLTV backup retention: days(number) or weekly|monthly|quarterly -->
 
+  <!-- Download performance -->
+  <setting id="dlworkers">auto</setting>                       <!-- Parallel download workers: 1=sequential, 2-8=fixed, auto=recommended -->
+
   <!-- Image source host (first 'enabled' is used) -->
   <imagesources>
     <source status="enabled">https://tmsimg.fancybits.co/assets</source>
@@ -68,9 +71,23 @@ gracenote2epg auto-detects your system and uses appropriate directories:
 </settings>
 ```
 
-> **Schema version 6**: the `<imagesources>` block was added in version 6.
-> Existing version-5 configs are upgraded automatically on the next run (a
-> backup is written and the block is injected with defaults).
+> **Schema versions 6 / 7**: v6 added the `<imagesources>` block, v7 the
+> `dlworkers` setting. Older configs are upgraded automatically on the next run
+> (a backup is written and the new defaults are injected).
+
+## Download Performance
+
+`dlworkers` controls how series details are downloaded:
+
+- `1` — sequential (one request at a time).
+- `2`–`8` — a fixed number of parallel keep-alive workers.
+- `auto` (default) — a sensible worker count with a self-regulating rate
+  governor (starts moderate, speeds up while the server is happy, backs off on
+  rate-limit/WAF signals).
+
+Parallel workers each reuse one persistent connection and share a combined-rate
+governor, so a refresh's new-series delta downloads ~3× faster without tripping
+the server. There is a single data host (no alternate source to configure).
 
 ## Image Source
 
@@ -318,7 +335,7 @@ Same format as `relogs` - controls how long to keep XMLTV backup files.
 ### Standard Home Setup
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="6">
+<settings version="7">
   <!-- Basic guide settings -->
   <setting id="zipcode">92101</setting>
   <setting id="lineupid">auto</setting>
@@ -341,7 +358,7 @@ Same format as `relogs` - controls how long to keep XMLTV backup files.
 ### Resource-Limited System
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="6">
+<settings version="7">
   <!-- Minimal resource usage -->
   <setting id="zipcode">J3B1M4</setting>
   <setting id="lineupid">auto</setting>
@@ -364,7 +381,7 @@ Same format as `relogs` - controls how long to keep XMLTV backup files.
 ### Development/Testing
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="6">
+<settings version="7">
   <!-- Testing configuration -->
   <setting id="zipcode">92101</setting>
   <setting id="lineupid">auto</setting>

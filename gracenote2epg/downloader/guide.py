@@ -21,7 +21,7 @@ class GuideDownloader(DownloaderStatsMixin):
     def __init__(self, http_engine: OptimizedDownloader, cache_manager: CacheManager):
         self.http_engine = http_engine
         self.cache_manager = cache_manager
-        self.base_url = "http://tvlistings.gracenote.com/api/grid"
+        self.base_url = "https://tvlistings.gracenote.com/api/grid"
 
         # Statistics
         self.downloaded_count = 0
@@ -29,7 +29,12 @@ class GuideDownloader(DownloaderStatsMixin):
         self.failed_count = 0
 
     def download_guide_blocks(
-        self, grid_time_start: float, day_hours: int, lineup_config: Dict, refresh_hours: int = 48
+        self,
+        grid_time_start: float,
+        day_hours: int,
+        lineup_config: Dict,
+        refresh_hours: int = 48,
+        workers: int = 1,
     ) -> bool:
         """
         Download guide blocks with intelligent caching
@@ -39,6 +44,7 @@ class GuideDownloader(DownloaderStatsMixin):
             day_hours: Number of 3-hour blocks to download
             lineup_config: Lineup configuration from config manager
             refresh_hours: Hours to refresh from cache
+            workers: parallel download workers (1 = sequential)
 
         Returns:
             bool: True if successful (80%+ blocks available)
@@ -54,27 +60,88 @@ class GuideDownloader(DownloaderStatsMixin):
         self.cached_count = 0
         self.failed_count = 0
 
-        # Download each block
-        grid_time = grid_time_start
-        for block_num in range(day_hours):
-            success = self._download_single_block(grid_time, lineup_config, refresh_hours)
+        if workers > 1:
+            self._download_parallel(
+                grid_time_start, day_hours, lineup_config, refresh_hours, workers
+            )
+        else:
+            # Download each block sequentially
+            grid_time = grid_time_start
+            for _ in range(day_hours):
+                success = self._download_single_block(grid_time, lineup_config, refresh_hours)
 
-            if success:
-                # Determine if it was downloaded or cached
-                time_from_now = grid_time - time.time()
-                if 0 < time_from_now < (refresh_hours * 3600):
-                    self.downloaded_count += 1
+                if success:
+                    # Determine if it was downloaded or cached
+                    time_from_now = grid_time - time.time()
+                    if 0 < time_from_now < (refresh_hours * 3600):
+                        self.downloaded_count += 1
+                    else:
+                        self.cached_count += 1
                 else:
-                    self.cached_count += 1
-            else:
-                self.failed_count += 1
+                    self.failed_count += 1
 
-            grid_time += 10800  # Next 3-hour block
+                grid_time += 10800  # Next 3-hour block
 
         # Log statistics
         self._log_statistics()
 
         return self._calculate_success_rate() >= 80
+
+    def _download_parallel(
+        self,
+        grid_time_start: float,
+        day_hours: int,
+        lineup_config: Dict,
+        refresh_hours: int,
+        workers: int,
+    ) -> None:
+        """Fetch the blocks that need it concurrently (keep-alive worker pool)."""
+        from .http import make_session, execute
+        from .tasks import DownloadTask
+        from .worker_pool import PacedWorkerPool
+
+        # Decide per block: cached / fetch / missing (no network here).
+        to_fetch = []  # (filename, was_existing)
+        tasks = []
+        grid_time = grid_time_start
+        for _ in range(day_hours):
+            filename = TimeUtils.guide_block_filename(grid_time)
+            status = self.cache_manager.guide_block_status(grid_time, filename, refresh_hours)
+            if status == "cached":
+                self.cached_count += 1
+            elif status == "missing":
+                logging.warning("Block %s not in cache and --norefresh prevents download", filename)
+                self.failed_count += 1
+            else:  # fetch
+                existed = (self.cache_manager.cache_dir / filename).exists()
+                to_fetch.append((filename, existed))
+                tasks.append(
+                    DownloadTask(
+                        task_id=filename,
+                        url=self._build_gracenote_url(lineup_config, grid_time),
+                        task_type="guide_block",
+                    )
+                )
+            grid_time += 10800
+
+        if not tasks:
+            return
+
+        existed_map = dict(to_fetch)
+        pool = PacedWorkerPool(execute, workers=workers, session_factory=make_session)
+        for result in pool.run(tasks):
+            saved = False
+            if result.success and result.content:
+                saved = self.cache_manager.validate_and_save_guide_block(
+                    result.content, result.task_id
+                )
+            if saved:
+                self.downloaded_count += 1
+            elif existed_map.get(result.task_id):
+                # Refresh failed but the previous version is still on disk.
+                self.cached_count += 1
+            else:
+                self.failed_count += 1
 
     def _download_single_block(
         self, grid_time: float, lineup_config: Dict, refresh_hours: int

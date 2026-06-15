@@ -25,6 +25,11 @@ with no change to the generated guide.
 - **Configurable image source**: a new `<imagesources>` config block selects the
   image host (the first `enabled` source). Mirror hosts serve the same images;
   the default is `tmsimg.fancybits.co` since `www.tvtv.ca` is rate-limited.
+- **Parallel series downloads**: a bounded pool of keep-alive workers downloads
+  series details concurrently, governed by a self-regulating (AIMD) shared rate
+  limiter. Controlled by the new `dlworkers` setting (`1`=sequential, `2`-`8`
+  =fixed, `auto`=default). ~3.4× faster on the new-series delta of a refresh,
+  with no rotating User-Agents (a single one is sufficient). Config schema → 7.
 
 ### Fixed
 - **Timezone offset**: XMLTV times now always carry a standard signed `±HHMM`
@@ -42,9 +47,9 @@ with no change to the generated guide.
   Behaviour verified byte-for-byte identical against the pre-refactor output.
 - **Geographic resolution is now built in**: postal/ZIP → city/province uses a
   small bundled GeoNames dataset read with the standard library.
-- **Config schema version 6**: introduces the `<imagesources>` block. Version-5
-  configs are upgraded automatically on the next run (a backup is written and the
-  block is injected with defaults).
+- **Config schema versions 6 and 7**: v6 introduces the `<imagesources>` block,
+  v7 the `dlworkers` setting. Older configs are upgraded automatically on the
+  next run (a backup is written and the new defaults are injected).
 
 ### Removed
 - **`pgeocode` dependency** (and its transitive `pandas`/`numpy` chain), which

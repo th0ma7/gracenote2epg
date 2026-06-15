@@ -52,10 +52,11 @@ class DataParser:
         """
         # Get lineup configuration
         lineup_config = config_manager.get_lineup_config()
+        workers = config_manager.get_download_workers()
 
         # PHASE 1: Download guide blocks (delegated to downloader)
         download_success = self.guide_downloader.download_guide_blocks(
-            grid_time_start, day_hours, lineup_config, refresh_hours
+            grid_time_start, day_hours, lineup_config, refresh_hours, workers
         )
 
         if not download_success:
@@ -69,7 +70,7 @@ class DataParser:
 
         return download_success
 
-    def download_and_parse_series_details(self) -> bool:
+    def download_and_parse_series_details(self, workers: int = 1) -> bool:
         """Download and parse extended series details with separated logic"""
         # Extract active series list from parsed schedule
         series_list = self.get_active_series_list()
@@ -79,7 +80,7 @@ class DataParser:
             return True
 
         # PHASE 1: Download series details (delegated to downloader)
-        download_success = self.series_downloader.download_series_details(series_list)
+        download_success = self.series_downloader.download_series_details(series_list, workers)
 
         if not download_success:
             logging.warning("Extended details download had issues, using basic descriptions")

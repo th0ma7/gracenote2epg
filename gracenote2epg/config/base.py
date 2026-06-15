@@ -99,6 +99,24 @@ class ConfigManager:
         sources = getattr(self, "image_sources", [])
         return self.settings_manager.active_image_source(sources)
 
+    # Worker count used for dlworkers="auto"
+    AUTO_DOWNLOAD_WORKERS = 4
+
+    def get_download_workers(self) -> int:
+        """Parallel download workers from ``dlworkers``.
+
+        ``1`` = sequential; ``2``-``8`` = fixed; ``auto`` (default) = a sensible
+        count, with the shared rate governor self-regulating throughput. Unknown
+        values fall back to auto.
+        """
+        value = str(self.settings.get("dlworkers", "auto")).strip().lower()
+        if value == "auto":
+            return self.AUTO_DOWNLOAD_WORKERS
+        try:
+            return max(1, min(8, int(value)))
+        except (TypeError, ValueError):
+            return self.AUTO_DOWNLOAD_WORKERS
+
     def _parse_and_migrate_config(self):
         """Parse configuration file and handle migration if needed"""
         # Parse configuration file

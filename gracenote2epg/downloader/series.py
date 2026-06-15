@@ -28,12 +28,13 @@ class SeriesDownloader(DownloaderStatsMixin):
         self.failed_series: List[str] = []
         self.cached_series: Set[str] = set()
 
-    def download_series_details(self, series_list: List[str]) -> bool:
+    def download_series_details(self, series_list: List[str], workers: int = 1) -> bool:
         """
         Download extended details for series with intelligent caching
 
         Args:
             series_list: List of series IDs to download
+            workers: parallel download workers (1 = sequential)
 
         Returns:
             bool: True if 70%+ successful
@@ -52,20 +53,24 @@ class SeriesDownloader(DownloaderStatsMixin):
         to_download = self._identify_series_to_download(unique_series)
 
         logging.info(
-            "Extended details: %d unique series found, %d downloads needed",
+            "Extended details: %d unique series found, %d downloads needed (workers=%d)",
             len(unique_series),
             len(to_download),
+            workers,
         )
 
-        # Download each series that needs it
-        for index, series_id in enumerate(to_download, 1):
-            success = self._download_single_series(series_id, index, len(to_download))
+        if workers > 1 and to_download:
+            self._download_parallel(to_download, workers)
+        else:
+            # Sequential: download each series that needs it
+            for index, series_id in enumerate(to_download, 1):
+                success = self._download_single_series(series_id, index, len(to_download))
 
-            if success:
-                self.downloaded_count += 1
-            else:
-                self.failed_count += 1
-                self.failed_series.append(series_id)
+                if success:
+                    self.downloaded_count += 1
+                else:
+                    self.failed_count += 1
+                    self.failed_series.append(series_id)
 
         # Count cached series
         self.cached_count = len(self.cached_series)
@@ -80,6 +85,45 @@ class SeriesDownloader(DownloaderStatsMixin):
         attempted = self.downloaded_count + self.failed_count
         download_success_rate = (self.downloaded_count / attempted * 100) if attempted else 100.0
         return download_success_rate >= 70 or attempted == 0
+
+    def _download_parallel(self, to_download: List[str], workers: int) -> None:
+        """Download series details with a bounded keep-alive worker pool."""
+        from .http import make_session, execute
+        from .tasks import DownloadTask
+        from .worker_pool import PacedWorkerPool
+
+        total = len(to_download)
+
+        def on_progress(done: int, _total: int):
+            if done == 1 or done % max(1, total // 10) == 0 or done == total:
+                logging.info("  Extended details: %d/%d", done, total)
+
+        tasks = [
+            DownloadTask(
+                task_id=sid,
+                url=self.base_url,
+                task_type="series_details",
+                data=f"programSeriesID={sid}".encode("utf-8"),
+            )
+            for sid in to_download
+        ]
+
+        pool = PacedWorkerPool(
+            execute, workers=workers, session_factory=make_session, on_progress=on_progress
+        )
+        for result in pool.run(tasks):
+            saved = False
+            if result.success and result.content:
+                try:
+                    json.loads(result.content)  # validate JSON
+                    saved = self.cache_manager.save_series_details(result.task_id, result.content)
+                except json.JSONDecodeError:
+                    logging.warning("  Invalid JSON received for: %s", result.task_id)
+            if saved:
+                self.downloaded_count += 1
+            else:
+                self.failed_count += 1
+                self.failed_series.append(result.task_id)
 
     def _identify_series_to_download(self, unique_series: Set[str]) -> List[str]:
         """Identify which series need to be downloaded vs cached"""
