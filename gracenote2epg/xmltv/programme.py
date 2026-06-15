@@ -295,6 +295,9 @@ class ProgrammeMixin:
                                 f'\t\t<star-rating>\n\t\t\t<value>{episode_data["epstar"]}/4</value>\n\t\t</star-rating>\n'
                             )
 
+                        # 24. IMAGE* (typed poster/backdrop/still - must be last)
+                        self._write_program_images(fh, episode_data, use_extended_details)
+
                         fh.write("\t</programme>\n")
                         self.episode_count += 1
 

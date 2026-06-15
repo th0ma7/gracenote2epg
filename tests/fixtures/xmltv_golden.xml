@@ -14,6 +14,7 @@
 		<desc lang="en">A film about testing, extended. • 1959 | rated: PG | premiere | CC</desc>
 		<credits>
 			<director>Jane Director</director>
+			<actor role="Sidekick">Amy Second</actor>
 			<actor role="Hero">John Lead</actor>
 			<actor>Sam Voice</actor>
 		</credits>
@@ -43,6 +44,9 @@
 		<star-rating>
 			<value>3/4</value>
 		</star-rating>
+		<image type="poster" orient="P">https://www.tvtv.ca/gn/pi/assets/p0000001_v_h9_poster.jpg</image>
+		<image type="backdrop" orient="L">https://www.tvtv.ca/gn/pi/assets/p0000001_k_h9_backdrop.jpg</image>
+		<image type="still" orient="L">https://www.tvtv.ca/gn/pi/assets/p0000001_v_v1.jpg</image>
 	</programme>
 	<programme start="20270115100000 +0000" stop="20270115103000 +0000" channel="12345.gracenote2epg">
 		<title lang="en">Example Series</title>
@@ -68,5 +72,8 @@
 		</audio>
 		<new />
 		<subtitles type="teletext" />
+		<image type="poster" orient="P">https://www.tvtv.ca/gn/pi/assets/p0000002_b_v1.jpg</image>
+		<image type="backdrop" orient="L">https://www.tvtv.ca/gn/pi/assets/p0000002_i_h9_backdrop.jpg</image>
+		<image type="still" orient="L">https://www.tvtv.ca/gn/pi/assets/p0000002_still.jpg</image>
 	</programme>
 </tv>

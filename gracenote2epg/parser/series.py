@@ -37,10 +37,9 @@ class SeriesParser:
             # Handle genres with movie detection
             self._apply_series_genres(episode_data, series_details, series_id)
             
-            # Process credits for movies
-            if series_id.startswith("MV"):
-                self._apply_movie_credits(episode_data, series_details)
-            
+            # Process cast and crew credits (movies and TV series)
+            self._apply_credits(episode_data, series_details, series_id)
+
             # Process original air date from upcoming episodes
             self._apply_original_air_date(episode_data, series_details, series_id)
             
@@ -84,15 +83,33 @@ class SeriesParser:
             episode_data["epgenres"] = ep_genres.split("|")
             logging.debug("Applied genres for %s: %s", series_id, ep_genres)
     
-    def _apply_movie_credits(self, episode_data: Dict, series_details: Dict):
-        """Parse and apply credits for movies"""
+    def _apply_credits(self, episode_data: Dict, series_details: Dict, series_id: str):
+        """Parse and apply cast and crew credits (movies and TV series).
+
+        The XMLTV writer groups/orders these by DTD role, so cast (actors,
+        voices) and crew (directors, writers, producers, …) can be concatenated.
+        Credits used to be applied for movies only and ignored the crew array.
+        """
         overview_tab = series_details.get("overviewTab", {})
-        if isinstance(overview_tab, dict):
-            cast_info = overview_tab.get("cast")
-            if cast_info:
-                episode_data["epcredits"] = cast_info
-                logging.debug("Applied movie credits: %d cast members",
-                             len(cast_info) if isinstance(cast_info, list) else 1)
+        if not isinstance(overview_tab, dict):
+            return
+
+        cast = overview_tab.get("cast")
+        crew = overview_tab.get("crew")
+        merged_credits = []
+        if isinstance(cast, list):
+            merged_credits.extend(cast)
+        if isinstance(crew, list):
+            merged_credits.extend(crew)
+
+        if merged_credits:
+            episode_data["epcredits"] = merged_credits
+            logging.debug(
+                "Applied credits for %s: %d cast + %d crew",
+                series_id,
+                len(cast) if isinstance(cast, list) else 0,
+                len(crew) if isinstance(crew, list) else 0,
+            )
     
     def _apply_original_air_date(self, episode_data: Dict, series_details: Dict,
                                 series_id: str):
@@ -113,7 +130,14 @@ class SeriesParser:
                 # Process original air date for TV shows (not movies)
                 if not series_id.startswith("MV"):
                     self._extract_original_air_date(episode_data, airing, series_id)
-                    
+                    # Per-episode synopsis is more specific than the generic
+                    # series description; prefer it for episodic content.
+                    self._apply_episode_synopsis(episode_data, airing, series_id)
+
+                # Fill the content rating from the series data when the guide
+                # block did not provide one (applies to movies and TV).
+                self._apply_display_rating(episode_data, airing, series_id)
+
                 # Check for TBA listings
                 self._check_tba_in_airing(airing, series_id)
                 break
@@ -128,7 +152,32 @@ class SeriesParser:
                 logging.debug("Applied original air date for %s: %s", series_id, orig_date)
             else:
                 logging.debug("Could not parse original air date for %s: %s", series_id, orig_date)
-    
+
+    def _apply_display_rating(self, episode_data: Dict, airing: Dict, series_id: str):
+        """Use the series displayRating as a fallback content rating.
+
+        The guide block's rating (``eprating``) takes precedence; this only
+        fills it in when the guide did not provide one.
+        """
+        if episode_data.get("eprating"):
+            return
+        rating = airing.get("displayRating")
+        if rating and str(rating).strip():
+            episode_data["eprating"] = str(rating).strip()
+            logging.debug("Applied displayRating for %s: %s", series_id, rating)
+
+    def _apply_episode_synopsis(self, episode_data: Dict, airing: Dict, series_id: str):
+        """Prefer the per-episode synopsis over the generic series description.
+
+        ``seriesDescription`` is series-level (e.g. "News, lifestyle and
+        entertainment.") whereas the matched airing's ``synopsis`` describes the
+        specific episode, giving a much better ``<desc>`` when xdesc is enabled.
+        """
+        synopsis = airing.get("synopsis")
+        if synopsis and str(synopsis).strip():
+            episode_data["epseriesdesc"] = str(synopsis).strip()
+            logging.debug("Applied per-episode synopsis for %s", series_id)
+
     def _check_tba_in_airing(self, airing: Dict, series_id: str):
         """Check for TBA (To Be Announced) content in airing data"""
         try:
