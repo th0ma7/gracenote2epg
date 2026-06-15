@@ -45,8 +45,8 @@ def make_session() -> requests.Session:
     session = requests.Session()
     session.headers.update(_HEADERS)
     adapter = HTTPAdapter(pool_connections=1, pool_maxsize=1, max_retries=0, pool_block=True)
+    # HTTPS only — the Gracenote data API is served over TLS.
     session.mount("https://", adapter)
-    session.mount("http://", adapter)
     return session
 
 
