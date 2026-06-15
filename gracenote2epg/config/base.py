@@ -83,7 +83,15 @@ class ConfigManager:
         # Set defaults for missing settings
         self._set_defaults_and_update_file()
 
+        # Parse image source hosts (after any config rewrite)
+        self.image_sources = self.settings_manager.parse_image_sources(self.config_file)
+
         return self.settings
+
+    def get_image_source(self) -> str:
+        """Active image host base URL (first enabled <imagesources> source)."""
+        sources = getattr(self, "image_sources", [])
+        return self.settings_manager.active_image_source(sources)
 
     def _parse_and_migrate_config(self):
         """Parse configuration file and handle migration if needed"""
@@ -100,13 +108,19 @@ class ConfigManager:
         migration_needed, deprecated_settings, unknown_settings, ordering_needed = \
             self.migrator.analyze_migration_needs(all_settings, valid_settings, original_order)
 
+        # A schema-version bump also needs a rewrite (e.g. to inject the
+        # <imagesources> block introduced in version 6).
+        version_upgrade_needed = self.version != self.settings_manager.CONFIG_VERSION
+
         # Process valid settings
         self._process_valid_settings(valid_settings)
 
         # Perform migration if needed
-        if migration_needed or ordering_needed:
+        if migration_needed or ordering_needed or version_upgrade_needed:
             removed_settings = deprecated_settings + unknown_settings
-            self._perform_migration(valid_settings, removed_settings, ordering_needed)
+            self._perform_migration(
+                valid_settings, removed_settings, ordering_needed, version_upgrade_needed
+            )
 
     def _process_valid_settings(self, valid_settings: Dict[str, Any]):
         """Process and type-convert valid settings"""
@@ -120,18 +134,21 @@ class ConfigManager:
                 type(processed_value).__name__,
             )
 
-    def _perform_migration(self, valid_settings: Dict[str, Any], removed_settings: List[str], ordering_needed: bool):
+    def _perform_migration(self, valid_settings: Dict[str, Any], removed_settings: List[str],
+                           ordering_needed: bool, version_upgrade: bool = False):
         """Perform configuration migration"""
         reason = []
         if removed_settings:
             reason.append(f"removed {len(removed_settings)} deprecated/unknown settings")
         if ordering_needed:
             reason.append("reordered settings for consistency")
+        if version_upgrade:
+            reason.append(f"upgraded schema to version {self.settings_manager.CONFIG_VERSION}")
 
         logging.info("Configuration update needed: %s", ", ".join(reason))
-        
+
         success = self.migrator.perform_migration(
-            self.config_file, valid_settings, removed_settings, ordering_needed
+            self.config_file, valid_settings, removed_settings, ordering_needed, version_upgrade
         )
         
         if success:

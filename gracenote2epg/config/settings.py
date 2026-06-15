@@ -14,9 +14,13 @@ from typing import Dict, Any, List, Optional
 class SettingsManager:
     """Handles XML settings parsing and management"""
 
+    # Current config schema version. Bumped to 6 when the <imagesources> block
+    # was introduced; older files are upgraded automatically on load.
+    CONFIG_VERSION = "6"
+
     # Default configuration template
     DEFAULT_CONFIG = """<?xml version="1.0" encoding="utf-8"?>
-<settings version="5">
+<settings version="6">
   <!-- Basic guide settings -->
   <setting id="zipcode">92101</setting>
   <setting id="lineupid">auto</setting>
@@ -50,7 +54,26 @@ class SettingsManager:
   <setting id="logrotate">true</setting>
   <setting id="relogs">30</setting>
   <setting id="rexmltv">7</setting>
+
+  <!-- Image source host (first 'enabled' is used; mirrors serve the same images) -->
+  <imagesources>
+    <source status="enabled">https://tmsimg.fancybits.co/assets</source>
+    <source status="disabled">https://www.tvtv.ca/gn/pi/assets</source>
+    <source status="disabled">https://zap2it.tmsimg.com/assets</source>
+    <source status="disabled">https://dshm.tmsimg.com/assets</source>
+  </imagesources>
 </settings>"""
+
+    # Known image hosts (base URLs serving the same TMS asset codes). The first
+    # 'enabled' source is used; tvtv.ca is rate-limited so the default enables
+    # the fancybits mirror. Used when the config has no <imagesources> block.
+    DEFAULT_IMAGE_SOURCES = [
+        ("https://tmsimg.fancybits.co/assets", True),
+        ("https://www.tvtv.ca/gn/pi/assets", False),
+        ("https://zap2it.tmsimg.com/assets", False),
+        ("https://dshm.tmsimg.com/assets", False),
+    ]
+    _DISABLED_STATUSES = {"disabled", "off", "false", "0", "no"}
 
     # Settings order for clean output
     SETTINGS_ORDER = [
@@ -171,11 +194,61 @@ class SettingsManager:
 
         return False
 
+    def parse_image_sources(self, config_file: Path) -> List[tuple]:
+        """Parse the <imagesources> block; returns a list of (url, enabled).
+
+        Returns [] when the file has no block (callers fall back to the
+        default sources).
+        """
+        try:
+            root = ET.parse(config_file).getroot()
+        except Exception:
+            return []
+        block = root.find("imagesources")
+        if block is None:
+            return []
+        sources = []
+        for src in block.findall("source"):
+            url = (src.text or "").strip()
+            if not url:
+                continue
+            status = (src.get("status") or "enabled").strip().lower()
+            sources.append((url, status not in self._DISABLED_STATUSES))
+        return sources
+
+    @classmethod
+    def active_image_source(cls, sources: List[tuple]) -> str:
+        """Return the first enabled source URL, falling back to the default."""
+        for url, enabled in sources:
+            if enabled:
+                return url
+        for url, enabled in cls.DEFAULT_IMAGE_SOURCES:
+            if enabled:
+                return url
+        return cls.DEFAULT_IMAGE_SOURCES[0][0]
+
+    def _render_image_sources(self, sources: List[tuple]) -> str:
+        """Serialize the <imagesources> block (uses defaults when empty)."""
+        if not sources:
+            sources = self.DEFAULT_IMAGE_SOURCES
+        out = [
+            "\n  <!-- Image source host (first 'enabled' is used;"
+            " mirrors serve the same images) -->\n",
+            "  <imagesources>\n",
+        ]
+        for url, enabled in sources:
+            status = "enabled" if enabled else "disabled"
+            out.append(f'    <source status="{status}">{url}</source>\n')
+        out.append("  </imagesources>\n")
+        return "".join(out)
+
     def write_clean_config(self, config_file: Path, valid_settings: Dict[str, str]):
         """Write configuration file in proper order with nice formatting"""
+        # Preserve any existing <imagesources> block (read before truncating).
+        image_sources = self.parse_image_sources(config_file)
         with open(config_file, "w", encoding="utf-8") as f:
             f.write('<?xml version="1.0" encoding="utf-8"?>\n')
-            f.write('<settings version="5">\n')
+            f.write(f'<settings version="{self.CONFIG_VERSION}">\n')
 
             # Group settings with comments for better readability
             sections = [
@@ -224,6 +297,9 @@ class SettingsManager:
                         f.write(f'  <setting id="{setting_id}">{value}</setting>\n')
                     else:
                         f.write(f'  <setting id="{setting_id}"></setting>\n')
+
+            # Preserve / inject the image source block
+            f.write(self._render_image_sources(image_sources))
 
             f.write("</settings>\n")
 

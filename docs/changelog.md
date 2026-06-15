@@ -16,6 +16,15 @@ with no change to the generated guide.
   subdirectory, keeping the cache root limited to guide blocks for easier
   inspection. Legacy flat caches are migrated automatically on first run (no
   re-download).
+- **Richer program metadata**: crew (directors/writers/producers) is now
+  included and credits are emitted for TV series, not just movies; credits are
+  ordered by billing `priority`. Typed `<image type="poster|backdrop|still">`
+  elements (DTD-valid) are emitted in addition to `<icon>`, including the
+  previously-unused background image. Per-episode synopsis is preferred over the
+  generic series description, and `displayRating` fills a missing guide rating.
+- **Configurable image source**: a new `<imagesources>` config block selects the
+  image host (the first `enabled` source). Mirror hosts serve the same images;
+  the default is `tmsimg.fancybits.co` since `www.tvtv.ca` is rate-limited.
 
 ### Fixed
 - **Timezone offset**: XMLTV times now always carry a standard signed `±HHMM`
@@ -33,6 +42,9 @@ with no change to the generated guide.
   Behaviour verified byte-for-byte identical against the pre-refactor output.
 - **Geographic resolution is now built in**: postal/ZIP → city/province uses a
   small bundled GeoNames dataset read with the standard library.
+- **Config schema version 6**: introduces the `<imagesources>` block. Version-5
+  configs are upgraded automatically on the next run (a backup is written and the
+  block is injected with defaults).
 
 ### Removed
 - **`pgeocode` dependency** (and its transitive `pandas`/`numpy` chain), which

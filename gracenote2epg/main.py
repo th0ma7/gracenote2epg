@@ -360,7 +360,9 @@ def main():
                     )
 
             # Generate XMLTV
-            xmltv_generator = XmltvGenerator(cache_manager)
+            xmltv_generator = XmltvGenerator(
+                cache_manager, image_base_url=config_manager.get_image_source()
+            )
             xmltv_success = xmltv_generator.generate_xmltv(
                 schedule=data_parser.get_schedule(), config=config, xmltv_file=xmltv_file
             )
