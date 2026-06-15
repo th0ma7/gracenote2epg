@@ -69,6 +69,27 @@ class SynopsisTests(unittest.TestCase):
         self.assertEqual(ep["epseriesdesc"], "Generic series blurb.")
 
 
+class DisplayRatingTests(unittest.TestCase):
+    def setUp(self):
+        self.p = SeriesParser()
+
+    def test_display_rating_fills_missing_guide_rating(self):
+        d = _details(
+            upcomingEpisodeTab=[{"tmsID": "EP000000010001", "displayRating": "TV-14"}]
+        )
+        ep = {"epid": "EP000000010001"}  # no eprating from the guide
+        self.p.parse_series_details(ep, d, "EP00000001")
+        self.assertEqual(ep["eprating"], "TV-14")
+
+    def test_guide_rating_takes_precedence(self):
+        d = _details(
+            upcomingEpisodeTab=[{"tmsID": "EP000000010001", "displayRating": "TV-14"}]
+        )
+        ep = {"epid": "EP000000010001", "eprating": "PG"}  # guide already set it
+        self.p.parse_series_details(ep, d, "EP00000001")
+        self.assertEqual(ep["eprating"], "PG")
+
+
 class ImagesTests(unittest.TestCase):
     def test_background_image_parsed_to_epfan(self):
         ep = {"epid": "x"}

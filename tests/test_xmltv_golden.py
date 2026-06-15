@@ -47,8 +47,10 @@ def build_schedule():
                 "epflag": ["Premiere"],
                 "eptags": ["CC", "Stereo"],
                 "epcredits": [
-                    {"role": "director", "name": "Jane Director"},
-                    {"role": "actor", "name": "John Lead", "characterName": "Hero"},
+                    {"role": "director", "name": "Jane Director", "priority": "1"},
+                    # Listed out of billing order; priority should reorder them.
+                    {"role": "actor", "name": "John Lead", "characterName": "Hero", "priority": "2"},
+                    {"role": "actor", "name": "Amy Second", "characterName": "Sidekick", "priority": "1"},
                     {"role": "voice", "name": "Sam Voice"},
                 ],
             },

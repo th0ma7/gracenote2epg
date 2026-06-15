@@ -71,8 +71,17 @@ class CreditsMixin:
                                 "character": character,
                                 "asset_id": asset_id,
                                 "original_role": original_role,
+                                "priority": credit.get("priority"),
                             }
                         )
+
+            # Order each role by billing priority (lower = billed first)
+            def _priority(credit_info):
+                p = credit_info.get("priority")
+                return int(p) if p is not None and str(p).isdigit() else 9999
+
+            for role_credits in grouped_credits.values():
+                role_credits.sort(key=_priority)
 
             # Check if we have any credits to write
             has_credits = any(len(credits_list) > 0 for credits_list in grouped_credits.values())

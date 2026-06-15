@@ -96,14 +96,14 @@ class SeriesParser:
 
         cast = overview_tab.get("cast")
         crew = overview_tab.get("crew")
-        credits = []
+        merged_credits = []
         if isinstance(cast, list):
-            credits.extend(cast)
+            merged_credits.extend(cast)
         if isinstance(crew, list):
-            credits.extend(crew)
+            merged_credits.extend(crew)
 
-        if credits:
-            episode_data["epcredits"] = credits
+        if merged_credits:
+            episode_data["epcredits"] = merged_credits
             logging.debug(
                 "Applied credits for %s: %d cast + %d crew",
                 series_id,
@@ -134,6 +134,10 @@ class SeriesParser:
                     # series description; prefer it for episodic content.
                     self._apply_episode_synopsis(episode_data, airing, series_id)
 
+                # Fill the content rating from the series data when the guide
+                # block did not provide one (applies to movies and TV).
+                self._apply_display_rating(episode_data, airing, series_id)
+
                 # Check for TBA listings
                 self._check_tba_in_airing(airing, series_id)
                 break
@@ -148,6 +152,19 @@ class SeriesParser:
                 logging.debug("Applied original air date for %s: %s", series_id, orig_date)
             else:
                 logging.debug("Could not parse original air date for %s: %s", series_id, orig_date)
+
+    def _apply_display_rating(self, episode_data: Dict, airing: Dict, series_id: str):
+        """Use the series displayRating as a fallback content rating.
+
+        The guide block's rating (``eprating``) takes precedence; this only
+        fills it in when the guide did not provide one.
+        """
+        if episode_data.get("eprating"):
+            return
+        rating = airing.get("displayRating")
+        if rating and str(rating).strip():
+            episode_data["eprating"] = str(rating).strip()
+            logging.debug("Applied displayRating for %s: %s", series_id, rating)
 
     def _apply_episode_synopsis(self, episode_data: Dict, airing: Dict, series_id: str):
         """Prefer the per-episode synopsis over the generic series description.
