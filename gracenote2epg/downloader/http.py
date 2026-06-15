@@ -56,7 +56,7 @@ def _looks_blocked(status_code: int, text: str) -> bool:
     return any(marker in text for marker in _WAF_MARKERS)
 
 
-def execute(session: requests.Session, task: DownloadTask, timeout: float = 15.0) -> DownloadResult:
+def execute(session, task: DownloadTask, timeout: float = 15.0) -> DownloadResult:
     """Perform one download for *task* over the worker's persistent *session*.
 
     POST when the task carries a body (series details), GET otherwise (guide

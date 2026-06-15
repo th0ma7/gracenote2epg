@@ -16,7 +16,7 @@ testable without real time.
 """
 
 import time
-from typing import Callable
+from typing import Callable, Optional
 
 
 class RateController:
@@ -48,7 +48,7 @@ class RateController:
 
         self.rate = self._clamp(initial_rate)
         self._successes = 0
-        self._last_request: float = None
+        self._last_request: Optional[float] = None
 
     def _clamp(self, rate: float) -> float:
         return max(self._min_rate, min(self._max_rate, rate))

@@ -67,53 +67,63 @@ class PacedWorkerPool:
         for task in tasks:
             work.put(task)
 
-        results: List[DownloadResult] = []
-        results_lock = threading.Lock()
-        total = len(tasks)
-        completed = 0
-
-        def report(result: DownloadResult) -> None:
-            nonlocal completed
-            with results_lock:
-                results.append(result)
-                completed += 1
-                progress = completed
-            if self._on_progress:
-                self._on_progress(progress, total)
-
-        def worker() -> None:
-            session = self._session_factory()
-            try:
-                while True:
-                    try:
-                        task = work.get_nowait()
-                    except queue.Empty:
-                        return
-                    # Release at the governed combined rate (serialised), then
-                    # run the request itself outside the lock so workers overlap.
-                    with self._gov_lock:
-                        self._governor.wait()
-                    try:
-                        result = self._execute(session, task)
-                    except Exception as e:  # never let one task kill a worker
-                        logging.debug("Task %s raised: %s", task.task_id, e)
-                        result = DownloadResult(task.task_id, success=False, error=str(e))
-                    with self._gov_lock:
-                        if result.rate_limited:
-                            self._governor.on_rate_limited()
-                        elif result.success:
-                            self._governor.on_success()
-                    report(result)
-                    work.task_done()
-            finally:
-                close = getattr(session, "close", None)
-                if callable(close):
-                    close()
-
-        n = min(self._workers, total)
-        threads = [threading.Thread(target=worker, daemon=True) for _ in range(n)]
+        sink = _ResultSink(len(tasks), self._on_progress)
+        n = min(self._workers, len(tasks))
+        threads = [
+            threading.Thread(target=self._worker_loop, args=(work, sink), daemon=True)
+            for _ in range(n)
+        ]
         for t in threads:
             t.start()
         for t in threads:
             t.join()
-        return results
+        return sink.results
+
+    def _worker_loop(self, work: "queue.Queue[DownloadTask]", sink: "_ResultSink") -> None:
+        """One worker: own a persistent session, drain the queue."""
+        session = self._session_factory()
+        try:
+            while True:
+                try:
+                    task = work.get_nowait()
+                except queue.Empty:
+                    return
+                sink.add(self._process(session, task))
+                work.task_done()
+        finally:
+            close = getattr(session, "close", None)
+            if callable(close):
+                close()
+
+    def _process(self, session, task: DownloadTask) -> DownloadResult:
+        """Pace (governed combined rate), run one request, feed the governor."""
+        with self._gov_lock:
+            self._governor.wait()
+        try:
+            result = self._execute(session, task)
+        except Exception as e:  # never let one task kill a worker
+            logging.debug("Task %s raised: %s", task.task_id, e)
+            result = DownloadResult(task.task_id, success=False, error=str(e))
+        with self._gov_lock:
+            if result.rate_limited:
+                self._governor.on_rate_limited()
+            elif result.success:
+                self._governor.on_success()
+        return result
+
+
+class _ResultSink:
+    """Thread-safe result collector with progress reporting."""
+
+    def __init__(self, total: int, on_progress: Optional[ProgressFn]):
+        self.results: List[DownloadResult] = []
+        self._total = total
+        self._on_progress = on_progress
+        self._lock = threading.Lock()
+
+    def add(self, result: DownloadResult) -> None:
+        with self._lock:
+            self.results.append(result)
+            done = len(self.results)
+        if self._on_progress:
+            self._on_progress(done, self._total)
