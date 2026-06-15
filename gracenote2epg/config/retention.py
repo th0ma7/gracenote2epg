@@ -168,7 +168,7 @@ class RetentionManager:
         xmltv_retention = retention_config.get("xmltv_retention_days", 7)
 
         logging.info("Cache and retention policies:")
-        
+
         if retention_config.get("enabled", False):
             logging.info(
                 "  logrotate: enabled (%s, %d days retention)",
@@ -178,10 +178,7 @@ class RetentionManager:
         else:
             logging.info("  logrotate: disabled")
 
-        logging.info(
-            "  rexmltv: %d days (XMLTV backup retention)", 
-            xmltv_retention
-        )
+        logging.info("  rexmltv: %d days (XMLTV backup retention)", xmltv_retention)
 
         # Log final cache and retention policy status for transparency
         if retention_config.get("enabled", False):
@@ -224,37 +221,37 @@ class RetentionManager:
     def optimize_retention_settings(self, settings: Dict[str, Any]) -> Dict[str, str]:
         """
         Analyze retention settings and provide optimization recommendations
-        
+
         Returns:
             Dict with optimization recommendations
         """
         recommendations = {}
-        
+
         days = int(settings.get("days", "1"))
         redays = int(settings.get("redays", str(days)))
         refresh_hours = self._get_refresh_hours(settings)
-        
+
         # Cache optimization
         if redays > days * 7:  # Much higher than needed
             recommendations["redays"] = (
                 f"Consider reducing redays from {redays} to {days * 2} "
                 f"for better disk usage (current setting keeps {redays - days} extra days)"
             )
-            
+
         if refresh_hours > 72:  # Very high refresh
             recommendations["refresh"] = (
                 f"Consider reducing refresh from {refresh_hours}h to 48h "
                 f"for more current data (current setting may use stale data)"
             )
-            
+
         # Retention optimization
         retention_config = self.get_retention_config(settings)
         log_retention = retention_config.get("log_retention_days", 30)
-        
+
         if log_retention > 90:  # Very long log retention
             recommendations["relogs"] = (
                 f"Consider reducing log retention from {log_retention} to 30 days "
                 f"for better disk usage"
             )
-            
+
         return recommendations

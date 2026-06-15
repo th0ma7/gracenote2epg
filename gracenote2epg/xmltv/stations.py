@@ -81,4 +81,3 @@ class StationsMixin:
 
         except Exception as e:
             logging.exception("Exception in _print_stations: %s", str(e))
-

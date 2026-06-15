@@ -10,7 +10,7 @@ from .guide import GuideParser
 from .series import SeriesParser
 
 __all__ = [
-    "DataParser",      # Main orchestrator
-    "GuideParser",     # Pure guide parsing
-    "SeriesParser",    # Pure series parsing
+    "DataParser",  # Main orchestrator
+    "GuideParser",  # Pure guide parsing
+    "SeriesParser",  # Pure series parsing
 ]

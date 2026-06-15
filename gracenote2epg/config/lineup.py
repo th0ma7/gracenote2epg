@@ -8,7 +8,7 @@ and validation URL generation for gracenote2epg configurations.
 import logging
 import re
 import sys
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from ..geocoding import Geocoder
 
@@ -28,8 +28,8 @@ class LineupManager:
         """Check if we should output debug to console (--show-lineup + --debug)"""
         # Check if we're in show-lineup mode with debug
         args = sys.argv
-        has_show_lineup = any('--show-lineup' in arg for arg in args)
-        has_debug = any('--debug' in arg for arg in args)
+        has_show_lineup = any("--show-lineup" in arg for arg in args)
+        has_debug = any("--debug" in arg for arg in args)
 
         # Check if logging has console handlers configured
         root_logger = logging.getLogger()
@@ -82,12 +82,30 @@ class LineupManager:
     def _remove_accents(self, text: str) -> str:
         """Remove French accents for URL normalization"""
         accent_map = {
-            'à': 'a', 'á': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a',
-            'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
-            'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i',
-            'ò': 'o', 'ó': 'o', 'ô': 'o', 'õ': 'o', 'ö': 'o',
-            'ù': 'u', 'ú': 'u', 'û': 'u', 'ü': 'u',
-            'ç': 'c', 'ñ': 'n'
+            "à": "a",
+            "á": "a",
+            "â": "a",
+            "ã": "a",
+            "ä": "a",
+            "è": "e",
+            "é": "e",
+            "ê": "e",
+            "ë": "e",
+            "ì": "i",
+            "í": "i",
+            "î": "i",
+            "ï": "i",
+            "ò": "o",
+            "ó": "o",
+            "ô": "o",
+            "õ": "o",
+            "ö": "o",
+            "ù": "u",
+            "ú": "u",
+            "û": "u",
+            "ü": "u",
+            "ç": "c",
+            "ñ": "n",
         }
 
         for accented, unaccented in accent_map.items():
@@ -98,7 +116,7 @@ class LineupManager:
     def _get_province_code_for_url(self, province_code: str, country: str) -> str:
         """Convert province code to tvtv URL format (lowercase)"""
         if not province_code:
-            return 'qc' if country == "CAN" else 'ca'
+            return "qc" if country == "CAN" else "ca"
 
         # For URL, we need lowercase
         return province_code.lower()
@@ -151,7 +169,7 @@ class LineupManager:
             "resolved_province": province_code,
             "location_source": status,
             # Always provide manual lookup instructions as fallback
-            "manual_lookup_message": f"Unable to automatically resolve location for {postal_code}. Please use manual lookup instructions below."
+            "manual_lookup_message": f"Unable to automatically resolve location for {postal_code}. Please use manual lookup instructions below.",
         }
 
     def normalize_lineup_id(self, lineupid: str, country: str, postal_code: str) -> str:
@@ -288,7 +306,7 @@ class LineupManager:
                 f"2. Enter postal code: {formatted_postal}",
                 f"3a. For OTA: Click 'Broadcast' → 'Local Over the Air' → Look for 'lu{lineup_config['tvtv_lineup_id']}' in URL",
                 f"3b. For Cable/Sat: Select your provider → Look for 'lu{country}-[ProviderID]-X' in URL",
-                f"4. Expected OTA pattern: lu{lineup_config['tvtv_lineup_id']}"
+                f"4. Expected OTA pattern: lu{lineup_config['tvtv_lineup_id']}",
             ]
         else:
             base_url = "https://www.tvtv.us/"
@@ -297,15 +315,15 @@ class LineupManager:
                 f"2. Enter ZIP code: {postal_code}",
                 f"3a. For OTA: Click 'Broadcast' → 'Local Over the Air' → Look for 'lu{lineup_config['tvtv_lineup_id']}' in URL",
                 f"3b. For Cable/Sat: Select your provider → Look for 'lu{country}-[ProviderID]-X' in URL",
-                f"4. Expected OTA pattern: lu{lineup_config['tvtv_lineup_id']}"
+                f"4. Expected OTA pattern: lu{lineup_config['tvtv_lineup_id']}",
             ]
 
         return {
             "base_url": base_url,
-            "auto_generated_url": lineup_config['tvtv_url'],
+            "auto_generated_url": lineup_config["tvtv_url"],
             "instructions": instructions,
-            "tvtv_lineup_id": lineup_config['tvtv_lineup_id'],
-            "expected_pattern": f"lu{lineup_config['tvtv_lineup_id']}"
+            "tvtv_lineup_id": lineup_config["tvtv_lineup_id"],
+            "expected_pattern": f"lu{lineup_config['tvtv_lineup_id']}",
         }
 
     def _format_postal_for_display(self, postal_code: str, country: str = None) -> str:
@@ -326,44 +344,44 @@ class LineupManager:
             Dictionary with configuration recommendations
         """
         lineup_config = self.get_auto_lineup_config(postal_code, country)
-        formatted_postal = self._format_postal_for_display(postal_code, country)
+        self._format_postal_for_display(postal_code, country)
 
         return {
             "auto_detection": {
                 "zipcode": postal_code,
                 "lineupid": "auto",
-                "comment": "Simplified configuration (auto-detection)"
+                "comment": "Simplified configuration (auto-detection)",
             },
             "explicit_ota": {
                 "zipcode": postal_code,
-                "lineupid": lineup_config['tvtv_lineup_id'],
-                "comment": "Alternative: Copy tvtv.com lineup ID directly"
+                "lineupid": lineup_config["tvtv_lineup_id"],
+                "comment": "Alternative: Copy tvtv.com lineup ID directly",
             },
             "cable_satellite_example": {
                 "zipcode": postal_code,
                 "lineupid": f"{country}-[ProviderID]-X",
-                "comment": f"For Cable/Satellite providers",
-                "example": f"{country}-0005993-X for Videotron" if country == "CAN" else f"{country}-0012345-X for Comcast"
-            }
+                "comment": "For Cable/Satellite providers",
+                "example": (
+                    f"{country}-0005993-X for Videotron"
+                    if country == "CAN"
+                    else f"{country}-0012345-X for Comcast"
+                ),
+            },
         }
 
     def log_lineup_detection(self, original_lineupid: str, final_config: Dict[str, str]):
         """Log lineup detection results for debugging"""
         if final_config["auto_detected"]:
             logging.info(
-                "Auto-detected lineupID: %s → %s",
-                original_lineupid,
-                final_config["lineup_id"]
+                "Auto-detected lineupID: %s → %s", original_lineupid, final_config["lineup_id"]
             )
         else:
             logging.info(
-                "Normalized lineupID: %s → %s",
-                original_lineupid,
-                final_config["lineup_id"]
+                "Normalized lineupID: %s → %s", original_lineupid, final_config["lineup_id"]
             )
 
         logging.debug(
             "Lineup details: device=%s, description='%s'",
             final_config["device_type"],
-            final_config["description"]
+            final_config["description"],
         )

@@ -17,10 +17,14 @@ class GeocoderTests(unittest.TestCase):
         )
 
     def test_canadian_full_code(self):
-        self.assertEqual(self.g.resolve_location("J3B1M4", "CAN"), ("Saint-Jean-sur-Richelieu", "QC"))
+        self.assertEqual(
+            self.g.resolve_location("J3B1M4", "CAN"), ("Saint-Jean-sur-Richelieu", "QC")
+        )
 
     def test_canadian_code_with_space(self):
-        self.assertEqual(self.g.resolve_location("J3B 1M4", "CAN"), ("Saint-Jean-sur-Richelieu", "QC"))
+        self.assertEqual(
+            self.g.resolve_location("J3B 1M4", "CAN"), ("Saint-Jean-sur-Richelieu", "QC")
+        )
 
     def test_canadian_fsa_fallback(self):
         # Full code absent from FSA-level data -> falls back to the 3-char FSA.

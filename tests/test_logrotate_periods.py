@@ -27,17 +27,13 @@ class PeriodInfoTests(unittest.TestCase):
         self.assertEqual(suffix, "2026-06-14")
 
     def test_monthly_bounds_handles_december_rollover(self):
-        start, end, suffix = periods.get_period_info(
-            "MONTHLY", "%Y-%m", datetime(2026, 12, 20)
-        )
+        start, end, suffix = periods.get_period_info("MONTHLY", "%Y-%m", datetime(2026, 12, 20))
         self.assertEqual(start, datetime(2026, 12, 1, 0, 0, 0))
         self.assertEqual(end, datetime(2026, 12, 31, 23, 59, 59))
         self.assertEqual(suffix, "2026-12")
 
     def test_weekly_bounds(self):
-        start, end, _ = periods.get_period_info(
-            "WEEKLY", "%Y-W%U", datetime(2026, 6, 10)
-        )
+        start, end, _ = periods.get_period_info("WEEKLY", "%Y-W%U", datetime(2026, 6, 10))
         self.assertEqual(start, datetime(2026, 6, 7, 0, 0, 0))
         self.assertEqual(end, datetime(2026, 6, 13, 23, 59, 59))
 

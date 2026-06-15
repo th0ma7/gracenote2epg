@@ -23,9 +23,7 @@ class TimezoneOffsetTests(unittest.TestCase):
 
     def test_utc_is_signed(self):
         # UTC used to emit "0000" with no sign; must now be "+0000".
-        self.assertEqual(
-            self._offset_for(timezone=0, altzone=0, daylight=0, isdst=0), "+0000"
-        )
+        self.assertEqual(self._offset_for(timezone=0, altzone=0, daylight=0, isdst=0), "+0000")
 
     def test_eastern_standard(self):
         # EST = UTC-5, no DST
@@ -82,7 +80,7 @@ class ConvHtmlTests(unittest.TestCase):
 
     def test_escapes_xml_metacharacters(self):
         self.assertEqual(
-            HtmlUtils.conv_html('<a> & "b" \'c\''),
+            HtmlUtils.conv_html("<a> & \"b\" 'c'"),
             "&lt;a&gt; &amp; &quot;b&quot; &apos;c&apos;",
         )
 

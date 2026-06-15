@@ -51,13 +51,15 @@ class ConfigDisplayer:
 
         return True
 
-    def _display_lineup_output(self,
-                              postal_code: str,
-                              clean_postal: str,
-                              country_name: str,
-                              country: str,
-                              lineup_config: Dict,
-                              debug_mode: bool = False):
+    def _display_lineup_output(
+        self,
+        postal_code: str,
+        clean_postal: str,
+        country_name: str,
+        country: str,
+        lineup_config: Dict,
+        debug_mode: bool = False,
+    ):
         """
         Display lineup detection output - unified function for both simple and debug modes
 
@@ -81,55 +83,61 @@ class ConfigDisplayer:
             print("=" * 70)
             print("GRACENOTE2EPG - LINEUP DETECTION (DEBUG MODE)")
             print("=" * 70)
-            print(f"📍 LOCATION INFORMATION:")
+            print("📍 LOCATION INFORMATION:")
             print(f"   Normalized code:   {clean_postal}")
             print(f"   Detected country:  {country_name} ({country})")
             print()
 
         # API parameters
-        print(f"🌍 GRACENOTE API URL PARAMETERS:")
+        print("🌍 GRACENOTE API URL PARAMETERS:")
         print(f"   lineupId={lineup_config['api_lineup_id']}")
         print(f"   country={country}")
         print(f"   postalCode={clean_postal}")
         print()
 
         # Validation URLs - SIMPLIFIED AND CONSISTENT
-        print(f"✅ VALIDATION URLs:")
-        
+        print("✅ VALIDATION URLs:")
+
         # Check if location was resolved automatically
-        if lineup_config.get('location_source') == 'auto_resolved':
+        if lineup_config.get("location_source") == "auto_resolved":
             print(f"   Direct URL: {lineup_config['tvtv_url']}")
-            print(f"   Status: ✅ Location automatically resolved ({lineup_config.get('resolved_city')}, {lineup_config.get('resolved_province')})")
+            print(
+                f"   Status: ✅ Location automatically resolved ({lineup_config.get('resolved_city')}, {lineup_config.get('resolved_province')})"
+            )
         else:
-            print(f"   Status: ⚠️  {lineup_config.get('manual_lookup_message', 'Unable to automatically resolve location')}")
-            print(f"   Manual lookup required:")
+            print(
+                f"   Status: ⚠️  {lineup_config.get('manual_lookup_message', 'Unable to automatically resolve location')}"
+            )
+            print("   Manual lookup required:")
 
         # Always show manual lookup steps
         try:
             validation_urls = self.lineup_manager.generate_validation_urls(clean_postal, country)
             for instruction in validation_urls["instructions"]:
                 print(f"     {instruction}")
-        except Exception as e:
+        except Exception:
             # Fallback manual instructions
             if country == "CAN":
-                print(f"     1. Go to https://www.tvtv.ca/")
+                print("     1. Go to https://www.tvtv.ca/")
                 print(f"     2. Enter postal code: {clean_postal}")
             else:
-                print(f"     1. Go to https://www.tvtv.us/")
+                print("     1. Go to https://www.tvtv.us/")
                 print(f"     2. Enter ZIP code: {clean_postal}")
-            print(f"     3. Click 'Broadcast' → 'Local Over the Air'")
+            print("     3. Click 'Broadcast' → 'Local Over the Air'")
             print(f"     4. Look for 'lu{lineup_config['tvtv_lineup_id']}' in the URL")
 
         print()
 
         # API test URL
         test_url = self.lineup_manager.generate_gracenote_api_url(lineup_config, int(example_time))
-        print(f"🔗 GRACENOTE API URL FOR TESTING:")
+        print("🔗 GRACENOTE API URL FOR TESTING:")
 
         if debug_mode:
             # Show the human-readable time for debugging
-            print(f"   Using current block: {standard_dt.strftime('%Y-%m-%d %H:00')} "
-                  f"(timestamp: {example_time})")
+            print(
+                f"   Using current block: {standard_dt.strftime('%Y-%m-%d %H:00')} "
+                f"(timestamp: {example_time})"
+            )
 
         print(f"   {test_url}")
         print()
@@ -142,57 +150,59 @@ class ConfigDisplayer:
         print("📖 DOCUMENTATION:")
         print("   https://github.com/th0ma7/gracenote2epg/blob/main/docs/lineup-configuration.md")
 
-    def _display_debug_sections(self, country: str, lineup_config: Dict, clean_postal: str, test_url: str):
+    def _display_debug_sections(
+        self, country: str, lineup_config: Dict, clean_postal: str, test_url: str
+    ):
         """Display debug-only sections for detailed mode"""
-        print(f"📊 GRACENOTE API - OTHER COMMON PARAMETERS:")
+        print("📊 GRACENOTE API - OTHER COMMON PARAMETERS:")
         print(
-            f"   • &device=[-|X]                    "
-            f"Device type: - for Over-the-Air, X for cable/satellite"
+            "   • &device=[-|X]                    "
+            "Device type: - for Over-the-Air, X for cable/satellite"
         )
         print(
-            f"   • &pref=16%2C128                   "
-            f"Preference codes (16,128): channel lineup preferences"
+            "   • &pref=16%2C128                   "
+            "Preference codes (16,128): channel lineup preferences"
         )
         print(
-            f"   • &timezone=America%2FNew_York     "
-            f"User timezone for schedule times (URL-encoded)"
+            "   • &timezone=America%2FNew_York     "
+            "User timezone for schedule times (URL-encoded)"
         )
-        print(f"   • &languagecode=en-us              Content language: en-us, fr-ca, es-us, etc.")
+        print("   • &languagecode=en-us              Content language: en-us, fr-ca, es-us, etc.")
         print(
-            f"   • &TMSID=                          "
-            f"Tribune Media Services ID (legacy, usually empty)"
+            "   • &TMSID=                          "
+            "Tribune Media Services ID (legacy, usually empty)"
         )
         print(
-            f"   • &AffiliateID=lat                 "
-            f"Partner/affiliate identifier (lat=local affiliate)"
+            "   • &AffiliateID=lat                 "
+            "Partner/affiliate identifier (lat=local affiliate)"
         )
         print()
 
-        print(f"💾 MANUAL DOWNLOAD:")
-        print(f"⚠️  NOTE: Using browser-like headers to bypass AWS WAF")
+        print("💾 MANUAL DOWNLOAD:")
+        print("⚠️  NOTE: Using browser-like headers to bypass AWS WAF")
         print()
         print(
-            f'curl -s -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-            f'AppleWebKit/537.36" \\'
+            'curl -s -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+            'AppleWebKit/537.36" \\'
         )
-        print(f'     -H "Accept: application/json, text/html, application/xhtml+xml, */*" \\')
+        print('     -H "Accept: application/json, text/html, application/xhtml+xml, */*" \\')
         print(f'     "{test_url}" > out.json')
         print()
 
-        print(f"🔧 RECOMMENDED CONFIGURATION:")
+        print("🔧 RECOMMENDED CONFIGURATION:")
         country_full = "Canada" if country == "CAN" else "United States"
-        print(f"   <!-- Simplified configuration (auto-detection) -->")
+        print("   <!-- Simplified configuration (auto-detection) -->")
         print(f'   <setting id="zipcode">{clean_postal}</setting>')
-        print(f'   <setting id="lineupid">auto</setting>')
+        print('   <setting id="lineupid">auto</setting>')
         print()
-        print(f"   <!-- Alternative: Copy tvtv.com lineup ID directly -->")
+        print("   <!-- Alternative: Copy tvtv.com lineup ID directly -->")
         print(f"   <!-- <setting id=\"lineupid\">{lineup_config['tvtv_lineup_id']}</setting> -->")
         print()
-        print(f"   <!-- For Cable/Satellite providers: -->")
+        print("   <!-- For Cable/Satellite providers: -->")
         print(f'   <!-- <setting id="lineupid">{country}-[ProviderID]-X</setting> -->')
         print(
             f'   <!-- Example: <setting id="lineupid">{country}-0005993-X</setting> '
-            f'for Videotron -->'
+            f"for Videotron -->"
         )
         print()
 
@@ -206,12 +216,17 @@ class ConfigDisplayer:
         print("=" * 70)
         print()
 
-    def display_config_summary(self, settings: Dict[str, Any], lineup_config: Dict[str, str], 
-                              retention_config: Dict[str, Any], config_changes: Dict[str, str]):
+    def display_config_summary(
+        self,
+        settings: Dict[str, Any],
+        lineup_config: Dict[str, str],
+        retention_config: Dict[str, Any],
+        config_changes: Dict[str, str],
+    ):
         """Display comprehensive configuration summary"""
         print("Configuration Summary:")
         print("=" * 50)
-        
+
         # Enhanced zipcode logging with cleaner format
         zipcode = settings.get("zipcode")
         if "zipcode" in config_changes:
@@ -246,11 +261,14 @@ class ConfigDisplayer:
         # Cache and retention
         self._display_cache_retention_summary(settings, retention_config)
 
-    def _display_cache_retention_summary(self, settings: Dict[str, Any], retention_config: Dict[str, Any]):
+    def _display_cache_retention_summary(
+        self, settings: Dict[str, Any], retention_config: Dict[str, Any]
+    ):
         """Display cache and retention policy summary"""
         from .retention import RetentionManager
+
         retention_manager = RetentionManager()
-        
+
         refresh_hours = retention_manager.get_refresh_hours(settings)
         redays = retention_manager.get_cache_retention_days(settings)
 
@@ -258,7 +276,9 @@ class ConfigDisplayer:
         if refresh_hours == 0:
             print("  refresh: disabled (use all cached data)")
         else:
-            print(f"  refresh: {refresh_hours} hours (refresh first {refresh_hours} hours of guide)")
+            print(
+                f"  refresh: {refresh_hours} hours (refresh first {refresh_hours} hours of guide)"
+            )
 
         print(f"  redays: {redays} days (cache retention period)")
 
@@ -270,7 +290,9 @@ class ConfigDisplayer:
         else:
             print("  logrotate: disabled")
 
-        print(f"  rexmltv: {retention_config['xmltv_retention_days']} days (XMLTV backup retention)")
+        print(
+            f"  rexmltv: {retention_config['xmltv_retention_days']} days (XMLTV backup retention)"
+        )
 
     def display_feature_logic(self, settings: Dict[str, Any]):
         """Display configuration logic explanation"""
@@ -296,10 +318,11 @@ class ConfigDisplayer:
     def display_optimization_recommendations(self, settings: Dict[str, Any]):
         """Display optimization recommendations if any"""
         from .retention import RetentionManager
+
         retention_manager = RetentionManager()
-        
+
         recommendations = retention_manager.optimize_retention_settings(settings)
-        
+
         if recommendations:
             print()
             print("💡 OPTIMIZATION RECOMMENDATIONS:")

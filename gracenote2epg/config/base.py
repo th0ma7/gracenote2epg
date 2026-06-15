@@ -68,9 +68,15 @@ class ConfigManager:
 
         # Override with command line arguments (TEMPORARY for this execution only)
         self._process_command_line_overrides(
-            location_code, location_source, location_extracted_from,
-            days, langdetect, refresh_hours, lineupid,
-            original_zipcode, original_lineupid
+            location_code,
+            location_source,
+            location_extracted_from,
+            days,
+            langdetect,
+            refresh_hours,
+            lineupid,
+            original_zipcode,
+            original_lineupid,
         )
 
         # Validate configuration consistency before processing
@@ -96,17 +102,19 @@ class ConfigManager:
     def _parse_and_migrate_config(self):
         """Parse configuration file and handle migration if needed"""
         # Parse configuration file
-        all_settings, original_order, version = self.settings_manager.parse_config_file(self.config_file)
+        all_settings, original_order, version = self.settings_manager.parse_config_file(
+            self.config_file
+        )
         self.version = version
 
         # Categorize settings and check migration needs
         valid_settings = {
-            k: v for k, v in all_settings.items() 
-            if k in self.validator.VALID_SETTINGS
+            k: v for k, v in all_settings.items() if k in self.validator.VALID_SETTINGS
         }
 
-        migration_needed, deprecated_settings, unknown_settings, ordering_needed = \
+        migration_needed, deprecated_settings, unknown_settings, ordering_needed = (
             self.migrator.analyze_migration_needs(all_settings, valid_settings, original_order)
+        )
 
         # A schema-version bump also needs a rewrite (e.g. to inject the
         # <imagesources> block introduced in version 6).
@@ -134,8 +142,13 @@ class ConfigManager:
                 type(processed_value).__name__,
             )
 
-    def _perform_migration(self, valid_settings: Dict[str, Any], removed_settings: List[str],
-                           ordering_needed: bool, version_upgrade: bool = False):
+    def _perform_migration(
+        self,
+        valid_settings: Dict[str, Any],
+        removed_settings: List[str],
+        ordering_needed: bool,
+        version_upgrade: bool = False,
+    ):
         """Perform configuration migration"""
         reason = []
         if removed_settings:
@@ -150,16 +163,25 @@ class ConfigManager:
         success = self.migrator.perform_migration(
             self.config_file, valid_settings, removed_settings, ordering_needed, version_upgrade
         )
-        
+
         if success:
             # Validate migration result
             if not self.migrator.validate_migration_result(self.config_file):
                 logging.warning("Migration validation failed, attempting rollback")
                 self.migrator.rollback_migration(self.config_file)
 
-    def _process_command_line_overrides(self, location_code, location_source, location_extracted_from,
-                                       days, langdetect, refresh_hours, lineupid,
-                                       original_zipcode, original_lineupid):
+    def _process_command_line_overrides(
+        self,
+        location_code,
+        location_source,
+        location_extracted_from,
+        days,
+        langdetect,
+        refresh_hours,
+        lineupid,
+        original_zipcode,
+        original_lineupid,
+    ):
         """Process command line argument overrides"""
         # Override zipcode
         if location_code:
@@ -172,15 +194,21 @@ class ConfigManager:
             self._process_setting_override("days", str(days), self.settings.get("days", "1"))
 
         if langdetect is not None:
-            self._process_setting_override("langdetect", langdetect, self.settings.get("langdetect", True))
+            self._process_setting_override(
+                "langdetect", langdetect, self.settings.get("langdetect", True)
+            )
 
         if refresh_hours is not None:
-            self._process_setting_override("refresh", str(refresh_hours), self.settings.get("refresh", "48"))
+            self._process_setting_override(
+                "refresh", str(refresh_hours), self.settings.get("refresh", "48")
+            )
 
         if lineupid is not None:
             self._process_setting_override("lineupid", lineupid, original_lineupid)
 
-    def _process_zipcode_override(self, location_code, location_source, location_extracted_from, original_zipcode):
+    def _process_zipcode_override(
+        self, location_code, location_source, location_extracted_from, original_zipcode
+    ):
         """Process zipcode override from command line"""
         if not original_zipcode:  # Empty in config
             if location_source == "extracted" and location_extracted_from:
@@ -188,20 +216,20 @@ class ConfigManager:
                     f"(empty) → {location_code} (extracted from {location_extracted_from})"
                 )
             else:
-                self.config_changes["zipcode"] = (
-                    f"(empty) → {location_code} (from command line)"
-                )
+                self.config_changes["zipcode"] = f"(empty) → {location_code} (from command line)"
         elif original_zipcode != location_code:
             if location_source == "extracted" and location_extracted_from:
                 self.config_changes["zipcode"] = (
                     f"{original_zipcode} → {location_code} (extracted from {location_extracted_from})"
                 )
-                self._handle_zipcode_mismatch(original_zipcode, location_code, location_extracted_from)
+                self._handle_zipcode_mismatch(
+                    original_zipcode, location_code, location_extracted_from
+                )
             else:
                 self.config_changes["zipcode"] = (
                     f"{original_zipcode} → {location_code} (overridden)"
                 )
-        
+
         self.settings["zipcode"] = location_code
 
     def _handle_zipcode_mismatch(self, original_zipcode, location_code, location_extracted_from):
@@ -209,8 +237,13 @@ class ConfigManager:
         normalized_location = location_code.replace(" ", "")
         logging.warning("Configuration mismatch detected and resolved:")
         logging.warning("  Configured zipcode: %s", original_zipcode)
-        logging.warning("  LineupID contains: %s (from %s)", normalized_location, location_extracted_from)
-        logging.warning("  Resolution: Using zipcode from lineupid (%s takes precedence)", location_extracted_from)
+        logging.warning(
+            "  LineupID contains: %s (from %s)", normalized_location, location_extracted_from
+        )
+        logging.warning(
+            "  Resolution: Using zipcode from lineupid (%s takes precedence)",
+            location_extracted_from,
+        )
 
     def _process_setting_override(self, setting_name, new_value, original_value):
         """Process generic setting override"""
@@ -240,7 +273,7 @@ class ConfigManager:
             success = self.migrator.update_config_with_defaults(
                 self.config_file, added_defaults, self.version
             )
-            
+
             if success:
                 # Notify user about upgrade
                 self.migrator.notify_config_upgrade(added_list)
@@ -321,7 +354,9 @@ class ConfigManager:
         logging.info("  description: %s", lineup_config["description"])
         logging.info("  xdetails (download extended data): %s", self.settings.get("xdetails"))
         logging.info("  xdesc (use extended descriptions): %s", self.settings.get("xdesc"))
-        logging.info("  langdetect (automatic language detection): %s", self.settings.get("langdetect"))
+        logging.info(
+            "  langdetect (automatic language detection): %s", self.settings.get("langdetect")
+        )
 
         # Log cache and retention using retention manager
         self.retention_manager.log_retention_summary(retention_config)

@@ -122,7 +122,7 @@ class SettingsManager:
     def parse_config_file(self, config_file: Path) -> tuple[Dict[str, Any], List[str], str]:
         """
         Parse XML configuration file
-        
+
         Returns:
             tuple: (valid_settings, all_settings_order, version)
         """
@@ -167,7 +167,9 @@ class SettingsManager:
             logging.error("Error reading configuration file %s: %s", config_file, e)
             raise
 
-    def check_ordering_needed(self, original_order: List[str], valid_settings: Dict[str, str]) -> bool:
+    def check_ordering_needed(
+        self, original_order: List[str], valid_settings: Dict[str, str]
+    ) -> bool:
         """Check if configuration settings need to be reordered"""
         # Filter original order to only include valid settings
         current_valid_order = [

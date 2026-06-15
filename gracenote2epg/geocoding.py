@@ -13,7 +13,6 @@ derives local stations from the postalCode that is sent directly).
 
 import csv
 import gzip
-import io
 import logging
 import sys
 from pathlib import Path
@@ -73,7 +72,9 @@ class Geocoder:
         else:
             logging.debug(message)
 
-    def resolve_location(self, postal_code: str, country: str) -> Tuple[Optional[str], Optional[str]]:
+    def resolve_location(
+        self, postal_code: str, country: str
+    ) -> Tuple[Optional[str], Optional[str]]:
         """
         Resolve postal code to city and province/state.
         For Canadian postal codes: tries the full code first, then the first 3
@@ -141,7 +142,9 @@ class Geocoder:
             city = self._extract_optimal_city_name(result, country)
 
             city = city.strip() if (city and city.strip()) else None
-            province_code = province_code.strip() if (province_code and province_code.strip()) else None
+            province_code = (
+                province_code.strip() if (province_code and province_code.strip()) else None
+            )
 
             if city and province_code:
                 self._debug("Resolved %s -> %s, %s", clean_postal, city, province_code)
@@ -158,8 +161,8 @@ class Geocoder:
         """Check if debug mode is enabled (console or logging)"""
         # Check if we have console debug (--show-lineup + --debug)
         args = sys.argv
-        has_show_lineup = any('--show-lineup' in arg for arg in args)
-        has_debug = any('--debug' in arg for arg in args)
+        has_show_lineup = any("--show-lineup" in arg for arg in args)
+        has_debug = any("--debug" in arg for arg in args)
         console_debug = has_show_lineup and has_debug
 
         # Check if logging debug is enabled
@@ -173,25 +176,26 @@ class Geocoder:
         Canada: community_name -> county_name -> place_name (cleaned)
         USA: place_name -> county_name
         """
+
         def get_field(field_name):
             value = result.get(field_name)
-            return value if value and str(value).lower() not in ['nan', 'none', ''] else None
+            return value if value and str(value).lower() not in ["nan", "none", ""] else None
 
         if country == "CAN":
             # Canada: Try community_name first (most generic)
-            city = get_field('community_name')
+            city = get_field("community_name")
             if city:
                 self._debug("Using community_name: '%s'", city)
                 return city
 
             # Fallback to county_name
-            city = get_field('county_name')
+            city = get_field("county_name")
             if city:
                 self._debug("Using county_name: '%s'", city)
                 return city
 
             # Last resort: clean place_name
-            city = get_field('place_name')
+            city = get_field("place_name")
             if city:
                 cleaned_city = self._extract_generic_city_name(city)
                 self._debug("Using cleaned place_name: '%s' -> '%s'", city, cleaned_city)
@@ -199,13 +203,13 @@ class Geocoder:
 
         else:
             # USA: place_name is usually already generic
-            city = get_field('place_name')
+            city = get_field("place_name")
             if city:
                 self._debug("Using place_name: '%s'", city)
                 return city
 
             # Fallback to county_name if needed
-            city = get_field('county_name')
+            city = get_field("county_name")
             if city:
                 self._debug("Using county_name: '%s'", city)
                 return city
@@ -223,19 +227,28 @@ class Geocoder:
             return city_name
 
         # Remove parenthetical descriptions first
-        if '(' in city_name:
-            city_name = city_name.split('(')[0].strip()
+        if "(" in city_name:
+            city_name = city_name.split("(")[0].strip()
 
         # Remove common directional/area suffixes
         directional_suffixes = [
-            ' East', ' West', ' North', ' South', ' Central',
-            ' Northeast', ' Northwest', ' Southeast', ' Southwest',
-            ' Downtown', ' Uptown', ' Midtown'
+            " East",
+            " West",
+            " North",
+            " South",
+            " Central",
+            " Northeast",
+            " Northwest",
+            " Southeast",
+            " Southwest",
+            " Downtown",
+            " Uptown",
+            " Midtown",
         ]
 
         for suffix in directional_suffixes:
             if city_name.endswith(suffix):
-                city_name = city_name[:-len(suffix)].strip()
+                city_name = city_name[: -len(suffix)].strip()
                 break
 
         return city_name

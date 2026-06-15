@@ -392,18 +392,24 @@ def main():
             # Comprehensive download statistics
             dl_stats = data_parser.get_downloader_statistics()
             logging.info("Final download statistics:")
-            logging.info("  Guide blocks: %d downloaded, %d cached, %d failed", 
-                        dl_stats["guide"]["downloaded"],
-                        dl_stats["guide"]["cached"], 
-                        dl_stats["guide"]["failed"])
-            logging.info("  Series details: %d downloaded, %d cached, %d failed",
-                        dl_stats["series"]["downloaded"],
-                        dl_stats["series"]["cached"],
-                        dl_stats["series"]["failed"])
-            logging.info("  HTTP requests: %d total, %d WAF blocks, %.2fs final delay",
-                        dl_stats["http_engine"]["total_requests"],
-                        dl_stats["http_engine"]["waf_blocks"],
-                        dl_stats["http_engine"]["current_delay"])
+            logging.info(
+                "  Guide blocks: %d downloaded, %d cached, %d failed",
+                dl_stats["guide"]["downloaded"],
+                dl_stats["guide"]["cached"],
+                dl_stats["guide"]["failed"],
+            )
+            logging.info(
+                "  Series details: %d downloaded, %d cached, %d failed",
+                dl_stats["series"]["downloaded"],
+                dl_stats["series"]["cached"],
+                dl_stats["series"]["failed"],
+            )
+            logging.info(
+                "  HTTP requests: %d total, %d WAF blocks, %.2fs final delay",
+                dl_stats["http_engine"]["total_requests"],
+                dl_stats["http_engine"]["waf_blocks"],
+                dl_stats["http_engine"]["current_delay"],
+            )
 
             # Log final cache and retention policy status for transparency
             if retention_config.get("enabled", False):

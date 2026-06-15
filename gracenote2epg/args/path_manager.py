@@ -13,7 +13,7 @@ from .systems import SystemDetector
 
 class PathManager:
     """Manages system-specific paths and directory creation"""
-    
+
     @staticmethod
     def get_system_defaults(base_dir: Optional[Path] = None) -> Dict[str, Path]:
         """
@@ -41,12 +41,12 @@ class PathManager:
             "xmltv_file": base_dir / "cache" / "xmltv.xml",
             "log_file": base_dir / "log" / "gracenote2epg.log",
         }
-    
+
     @staticmethod
     def create_directories(defaults: Dict[str, Path]):
         """
         Create required directories with proper 755 permissions
-        
+
         Args:
             defaults: Dictionary containing directory paths
         """

@@ -19,9 +19,9 @@ def next_rollover_at(when: str, interval_seconds: int) -> float:
     if when == "MIDNIGHT" or when == "DAILY":
         # Next midnight
         current_time = datetime.fromtimestamp(now)
-        next_rollover = current_time.replace(
-            hour=0, minute=0, second=0, microsecond=0
-        ) + timedelta(days=1)
+        next_rollover = current_time.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(
+            days=1
+        )
         return next_rollover.timestamp()
 
     elif when == "WEEKLY":
@@ -30,9 +30,9 @@ def next_rollover_at(when: str, interval_seconds: int) -> float:
         days_until_sunday = (6 - current_time.weekday()) % 7
         if days_until_sunday == 0:  # Today is Sunday
             days_until_sunday = 7  # Next Sunday
-        next_rollover = current_time.replace(
-            hour=0, minute=0, second=0, microsecond=0
-        ) + timedelta(days=days_until_sunday)
+        next_rollover = current_time.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(
+            days=days_until_sunday
+        )
         return next_rollover.timestamp()
 
     elif when == "MONTHLY":
@@ -67,7 +67,9 @@ def get_week_start(dt: datetime) -> datetime:
     return week_start
 
 
-def get_period_info(when: str, suffix: str, entry_datetime: datetime) -> Tuple[datetime, datetime, str]:
+def get_period_info(
+    when: str, suffix: str, entry_datetime: datetime
+) -> Tuple[datetime, datetime, str]:
     """Get period start, end, and suffix for given datetime."""
     if when == "MIDNIGHT" or when == "DAILY":
         # Daily: midnight to midnight

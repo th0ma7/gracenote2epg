@@ -45,7 +45,6 @@ class CategoriesMixin:
 
                 fh.write(f'\t\t<category lang="{detected_language}">{html_safe_genre}</category>\n')
 
-
     def _get_genre_list(
         self, episode_data: Dict, ep_genre: str, use_extended_details: bool = True
     ) -> List[str]:
@@ -72,7 +71,6 @@ class CategoriesMixin:
 
         return []
 
-
     def _get_primary_genre(self, ep_filter: List, ep_genres: List) -> List[str]:
         """Get primary genre mapping"""
         genres = ep_genres if ep_genres else ep_filter
@@ -95,7 +93,6 @@ class CategoriesMixin:
 
         return ["Variety show"]  # Default
 
-
     def _get_eit_genres(self, ep_filter: List, ep_genres: List) -> List[str]:
         """Get EIT-style genre mapping"""
         genre_list = []
@@ -112,4 +109,3 @@ class CategoriesMixin:
             genre_list.insert(0, "News / Current affairs")
 
         return genre_list
-

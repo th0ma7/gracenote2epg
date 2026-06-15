@@ -88,7 +88,6 @@ class DescriptionsMixin:
             )
             return None
 
-
     def _add_enhanced_info_to_basic_desc(
         self,
         base_desc: str,
@@ -210,4 +209,3 @@ class DescriptionsMixin:
                 str(e),
             )
             return base_desc
-

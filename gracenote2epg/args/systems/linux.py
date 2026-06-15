@@ -13,27 +13,27 @@ from typing import Dict
 
 class LinuxDetector:
     """Generic Linux detection and configuration"""
-    
+
     system_type = "linux"
-    
+
     def detect(self) -> bool:
         """
         Detect generic Linux system (catch-all)
-        
+
         Returns:
             bool: Always True as this is the fallback
         """
         # This is the catch-all detector, always returns True
         # More specific detectors should be checked first
         return True
-    
+
     def get_base_path(self, home: Path) -> Path:
         """
         Get Linux-specific base path
-        
+
         Args:
             home: User home directory
-            
+
         Returns:
             Path: Base directory for gracenote2epg
         """
@@ -45,7 +45,7 @@ class LinuxDetector:
                 Path("/data/gracenote2epg"),
                 Path("/app/gracenote2epg"),
             ]
-            
+
             for docker_path in docker_paths:
                 try:
                     if docker_path.parent.exists():
@@ -55,7 +55,7 @@ class LinuxDetector:
                     continue
                 except Exception:
                     continue
-        
+
         # Check for TVheadend installation
         tvheadend_paths = [
             Path("/usr/share/tvheadend/data/epggrab/gracenote2epg"),
@@ -63,7 +63,7 @@ class LinuxDetector:
             Path("/etc/tvheadend/epggrab/gracenote2epg"),
             home / ".hts" / "tvheadend" / "epggrab" / "gracenote2epg",
         ]
-        
+
         for tvh_path in tvheadend_paths:
             try:
                 if tvh_path.parent.exists():
@@ -77,23 +77,23 @@ class LinuxDetector:
                 # Skip any other errors
                 logging.debug(f"Error checking path {tvh_path.parent}: {e}")
                 continue
-        
+
         # Default Linux path in home directory
         default_path = home / "gracenote2epg"
         logging.debug(f"Using default Linux path: {default_path}")
         return default_path
-    
+
     def _is_docker(self) -> bool:
         """
         Check if running inside a Docker container
-        
+
         Returns:
             bool: True if Docker environment detected
         """
         # Method 1: Check for .dockerenv file
         if Path("/.dockerenv").exists():
             return True
-        
+
         # Method 2: Check cgroup for docker
         try:
             with open("/proc/1/cgroup", "r") as f:
@@ -101,17 +101,17 @@ class LinuxDetector:
                     return True
         except Exception:
             pass
-        
+
         # Method 3: Check environment variables
         if os.environ.get("DOCKER_CONTAINER"):
             return True
-        
+
         return False
-    
+
     def _get_distribution_info(self) -> Dict:
         """
         Get Linux distribution information
-        
+
         Returns:
             Dict: Distribution details
         """
@@ -119,7 +119,7 @@ class LinuxDetector:
             "distribution": "unknown",
             "version": None,
         }
-        
+
         # Try to read from os-release (most modern distributions)
         os_release = Path("/etc/os-release")
         if os_release.exists():
@@ -132,7 +132,7 @@ class LinuxDetector:
                             dist_info["version"] = line.split("=")[1].strip().strip('"')
             except Exception:
                 pass
-        
+
         # Fallback to older methods
         elif Path("/etc/debian_version").exists():
             dist_info["distribution"] = "debian"
@@ -141,7 +141,7 @@ class LinuxDetector:
                     dist_info["version"] = f.read().strip()
             except Exception:
                 pass
-        
+
         elif Path("/etc/redhat-release").exists():
             dist_info["distribution"] = "redhat"
             try:
@@ -149,18 +149,19 @@ class LinuxDetector:
                     content = f.read().strip()
                     # Extract version from string like "CentOS Linux release 7.9.2009"
                     import re
-                    version_match = re.search(r'release\s+([\d.]+)', content)
+
+                    version_match = re.search(r"release\s+([\d.]+)", content)
                     if version_match:
                         dist_info["version"] = version_match.group(1)
             except Exception:
                 pass
-        
+
         return dist_info
-    
+
     def get_system_info(self) -> Dict:
         """
         Get Linux system information
-        
+
         Returns:
             Dict: System details including distribution
         """
@@ -169,18 +170,19 @@ class LinuxDetector:
             "is_docker": self._is_docker(),
             "kernel_version": None,
         }
-        
+
         # Get distribution information
         dist_info = self._get_distribution_info()
         info.update(dist_info)
-        
+
         # Get kernel version
         try:
             import platform
+
             info["kernel_version"] = platform.release()
         except Exception:
             pass
-        
+
         # Check for TVheadend
         tvheadend_markers = [
             Path("/usr/bin/tvheadend"),
@@ -188,7 +190,7 @@ class LinuxDetector:
             Path("/var/lib/tvheadend"),
             Path.home() / ".hts" / "tvheadend",
         ]
-        
+
         tvheadend_detected = False
         for path in tvheadend_markers:
             try:
@@ -200,7 +202,7 @@ class LinuxDetector:
                 continue
             except Exception:
                 continue
-        
+
         info["tvheadend_detected"] = tvheadend_detected
-        
+
         return info

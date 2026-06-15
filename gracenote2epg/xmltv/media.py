@@ -29,15 +29,14 @@ class MediaMixin:
 
             # Check if it's an MPAA rating
             if rating in mpaa_ratings:
-                fh.write(f'\t\t<rating system="MPAA">\n')
+                fh.write('\t\t<rating system="MPAA">\n')
                 fh.write(f"\t\t\t<value>{rating}</value>\n")
-                fh.write(f"\t\t</rating>\n")
+                fh.write("\t\t</rating>\n")
             else:
                 # Generic rating
-                fh.write(f"\t\t<rating>\n")
+                fh.write("\t\t<rating>\n")
                 fh.write(f"\t\t\t<value>{rating}</value>\n")
-                fh.write(f"\t\t</rating>\n")
-
+                fh.write("\t\t</rating>\n")
 
     def _write_program_icons(
         self,
@@ -70,7 +69,6 @@ class MediaMixin:
                         f'\t\t<icon src="{self.ASSETS_BASE_URL}/{episode_data["epthumb"]}.jpg" />\n'
                     )
 
-
     def _write_program_images(self, fh, episode_data: Dict, use_extended_details: bool = True):
         """Write typed <image> elements (poster/backdrop/still).
 
@@ -80,10 +78,11 @@ class MediaMixin:
         consumers that only read it. poster/backdrop come from the extended
         series details; the episode still comes from the guide thumbnail.
         """
+
         def image(img_type, orient, code):
             fh.write(
                 f'\t\t<image type="{img_type}" orient="{orient}">'
-                f'{self.ASSETS_BASE_URL}/{code}.jpg</image>\n'
+                f"{self.ASSETS_BASE_URL}/{code}.jpg</image>\n"
             )
 
         if use_extended_details:
@@ -101,4 +100,3 @@ class MediaMixin:
         if isinstance(flags, (list, tuple)):
             return any(flag in ["New", "Live"] for flag in flags)
         return False
-

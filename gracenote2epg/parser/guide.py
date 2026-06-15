@@ -14,33 +14,33 @@ from ..utils import TimeUtils
 
 class GuideParser:
     """Parses TV guide JSON data"""
-    
+
     def __init__(self, tvh_client=None):
         self.tvh_client = tvh_client
         self.schedule: Dict = {}
-        
+
     def parse_stations(self, content: bytes) -> bool:
         """Parse station information from guide JSON data"""
         try:
             ch_guide = json.loads(content)
-            
+
             for station in ch_guide.get("channels", []):
                 station_id = station.get("channelId")
-                
+
                 if self._should_process_station(station):
                     self.schedule[station_id] = {}
-                    
+
                     # Extract basic station info
                     self.schedule[station_id]["chfcc"] = station.get("callSign")
                     self.schedule[station_id]["chnam"] = station.get("affiliateName")
-                    
+
                     # Extract icon URL
                     thumbnail = station.get("thumbnail", "")
                     if thumbnail:
                         self.schedule[station_id]["chicon"] = thumbnail.split("?")[0]
                     else:
                         self.schedule[station_id]["chicon"] = ""
-                    
+
                     # Handle channel number with TVheadend integration
                     if self.tvh_client:
                         matched_channel = self.tvh_client.get_matched_channel_number(
@@ -53,41 +53,41 @@ class GuideParser:
 
                     self.schedule[station_id]["chnum"] = matched_channel
                     self.schedule[station_id]["chtvh"] = tvh_name
-                    
+
             return True
-            
+
         except Exception as e:
             logging.exception("Exception in parse_stations: %s", str(e))
             return False
-    
+
     def parse_episodes(self, content: bytes) -> str:
         """Parse episode information from guide JSON data"""
         check_tba = "Safe"
-        
+
         try:
             ch_guide = json.loads(content)
-            
+
             for station in ch_guide.get("channels", []):
                 station_id = station.get("channelId")
-                
+
                 if self._should_process_station(station):
                     episodes = station.get("events", [])
-                    
+
                     for episode in episodes:
                         episode_data = self._parse_single_episode(episode)
                         if episode_data:
                             ep_key = episode_data["epstart"]
                             self.schedule[station_id][ep_key] = episode_data
-                            
+
                             # Check for TBA content
                             if self._check_tba_content(episode_data):
                                 check_tba = "Unsafe"
-                                
+
         except Exception as e:
             logging.exception("Exception in parse_episodes: %s", str(e))
-            
+
         return check_tba
-    
+
     def _parse_single_episode(self, episode: Dict) -> Optional[Dict]:
         """Parse individual episode data from JSON"""
         # Extract and validate start time
@@ -101,14 +101,14 @@ class GuideParser:
         end_time_str = episode.get("endTime", "")
         ep_end_ts = TimeUtils.parse_gracenote_time(end_time_str)
         ep_end = str(ep_end_ts) if ep_end_ts is not None else None
-        
+
         # Get program information
         program = episode.get("program", {})
-        
+
         # Extract descriptions with fallback logic
         short_desc = program.get("shortDesc") or ""
         long_desc = program.get("longDesc") or ""
-        
+
         # Build complete episode data structure
         return {
             "epid": program.get("tmsId"),
@@ -125,9 +125,7 @@ class GuideParser:
             "epsn": program.get("season"),
             "epen": program.get("episode"),
             "epthumb": (
-                episode.get("thumbnail", "").split("?")[0]
-                if episode.get("thumbnail")
-                else ""
+                episode.get("thumbnail", "").split("?")[0] if episode.get("thumbnail") else ""
             ),
             "epoad": None,  # Will be populated by series parser
             "epstar": None,
@@ -139,7 +137,7 @@ class GuideParser:
             "epfan": None,  # Will be populated by series parser
             "epseriesdesc": None,  # Will be populated by series parser
         }
-    
+
     def _should_process_station(self, station_data: Dict) -> bool:
         """Determine if a station should be processed based on filtering rules"""
         if self.tvh_client:
@@ -150,7 +148,7 @@ class GuideParser:
                 use_channel_matching=True,
             )
         return True  # Process all stations if no TVheadend client
-    
+
     def _check_tba_content(self, episode_data: Dict) -> bool:
         """Check if episode contains TBA (To Be Announced) content"""
         if episode_data.get("epshow") and "TBA" in episode_data["epshow"]:
@@ -158,7 +156,7 @@ class GuideParser:
         if episode_data.get("eptitle") and "TBA" in episode_data["eptitle"]:
             return True
         return False
-    
+
     def get_schedule(self) -> Dict:
         """Get the complete parsed schedule"""
         return self.schedule
