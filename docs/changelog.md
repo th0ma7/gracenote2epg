@@ -31,6 +31,14 @@ with no change to the generated guide.
 - **Internal structure**: `xmltv.py` (947 lines) and `logrotate.py` (657 lines)
   were split into packages; `CacheManager` moved to its own `cache.py` module.
   Behaviour verified byte-for-byte identical against the pre-refactor output.
+- **Geographic resolution is now built in**: postal/ZIP → city/province uses a
+  small bundled GeoNames dataset read with the standard library.
+
+### Removed
+- **`pgeocode` dependency** (and its transitive `pandas`/`numpy` chain), which
+  blocked many NAS platforms. The `[geocoding]` extra is gone — resolution is
+  built in with the same results. Refresh the bundled data with
+  `make geodata` (or `scripts/build-geodata.py`) before a release and commit it.
 
 ## [1.6.1] - 2026-02-08
 ### Fixed

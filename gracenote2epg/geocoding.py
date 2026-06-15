@@ -1,44 +1,70 @@
 """
 gracenote2epg.geocoding - Geographic location resolution
 
-Handles postal code resolution to city and province/state using pgeocode,
-with intelligent fallbacks and caching for gracenote2epg configurations.
+Resolves postal/ZIP codes to a city and province/state using a small bundled
+GeoNames dataset (gracenote2epg/data/geopostal.csv.gz), read with the standard
+library only. This replaces the former pgeocode dependency (which pulled in
+pandas/numpy) so the grabber runs on any platform.
+
+The resolution is only used to build the human-friendly tvtv.com validation URL
+shown by --show-lineup; it has no effect on the downloaded guide (Gracenote
+derives local stations from the postalCode that is sent directly).
 """
 
+import csv
+import gzip
+import io
 import logging
 import sys
-from typing import Optional, Tuple
+from pathlib import Path
+from typing import Dict, Optional, Tuple
 
-try:
-    import pgeocode
-    PGEOCODE_AVAILABLE = True
-except ImportError:
-    PGEOCODE_AVAILABLE = False
-    logging.debug("pgeocode not available - geographic resolution disabled")
+# App country codes (CAN/USA) -> GeoNames country codes (CA/US)
+_COUNTRY_MAP = {"CAN": "CA", "USA": "US"}
+
+_DATA_FILE = Path(__file__).resolve().parent / "data" / "geopostal.csv.gz"
+
+# Lazily-loaded, process-wide cache: {(geonames_country, postal): {fields}}
+_POSTAL_DB: Optional[Dict[Tuple[str, str], Dict[str, str]]] = None
+
+
+def _load_postal_db() -> Dict[Tuple[str, str], Dict[str, str]]:
+    """Load and cache the bundled postal dataset (once per process)."""
+    global _POSTAL_DB
+    if _POSTAL_DB is not None:
+        return _POSTAL_DB
+
+    db: Dict[Tuple[str, str], Dict[str, str]] = {}
+    try:
+        with gzip.open(_DATA_FILE, "rt", encoding="utf-8") as fh:
+            reader = csv.DictReader(fh)
+            for row in reader:
+                key = (row["country"], row["postal"])
+                db[key] = {
+                    "place_name": row.get("place_name", ""),
+                    "state_code": row.get("state_code", ""),
+                    "state_name": row.get("state_name", ""),
+                    "county_name": row.get("county_name", ""),
+                    "community_name": row.get("community_name", ""),
+                }
+    except FileNotFoundError:
+        logging.debug("Postal dataset not found at %s - geo resolution disabled", _DATA_FILE)
+    except Exception as e:
+        logging.warning("Failed to load postal dataset: %s", str(e))
+
+    _POSTAL_DB = db
+    return db
 
 
 class Geocoder:
-    """Handles geographic location resolution using pgeocode"""
+    """Resolves postal codes to city/province using the bundled GeoNames data."""
 
     def __init__(self, debug_function=None):
         # Cache to avoid repeated queries
-        self._location_cache = {}
-        
+        self._location_cache: Dict[str, Tuple[Optional[str], Optional[str]]] = {}
+
         # Debug function (can be injected for console debug)
         self._debug = debug_function or self._default_debug
-        
-        # Initialize pgeocode geolocators if available
-        self._ca_geocoder = None
-        self._us_geocoder = None
-        
-        if PGEOCODE_AVAILABLE:
-            try:
-                self._ca_geocoder = pgeocode.Nominatim('CA')
-                self._us_geocoder = pgeocode.Nominatim('US')
-                self._debug("pgeocode initialized successfully")
-            except Exception as e:
-                self._debug("Failed to initialize pgeocode: %s", str(e))
-                logging.warning("Failed to initialize pgeocode: %s", str(e))
 
     def _default_debug(self, message, *args):
         """Default debug function using standard logging"""
@@ -49,13 +75,14 @@ class Geocoder:
 
     def resolve_location(self, postal_code: str, country: str) -> Tuple[Optional[str], Optional[str]]:
         """
-        Resolve postal code to city and province/state using pgeocode
-        For Canadian postal codes: tries full code first, then first 3 characters
-        
+        Resolve postal code to city and province/state.
+        For Canadian postal codes: tries the full code first, then the first 3
+        characters (GeoNames stores Canada at the FSA / 3-character level).
+
         Args:
             postal_code: Postal/ZIP code to resolve
             country: Country code (CAN/USA)
-            
+
         Returns:
             Tuple of (city, province_code) or (None, None) if not found
         """
@@ -65,92 +92,66 @@ class Geocoder:
             cached_result = self._location_cache[cache_key]
             self._debug("Using cached result for %s: %s", cache_key, cached_result)
             return cached_result
-        
-        city, province = None, None
-        
-        # Try pgeocode (offline, no dependencies)
-        if PGEOCODE_AVAILABLE:
-            self._debug("Trying pgeocode for %s", postal_code)
-            city, province = self._try_pgeocode(postal_code, country)
-            if city and province:
-                self._debug("pgeocode SUCCESS: %s, %s", city, province)
-                self._location_cache[cache_key] = (city, province)
-                return city, province
-            else:
-                self._debug("pgeocode failed or returned incomplete data")
-        else:
-            self._debug("pgeocode not available")
-        
-        # Cache the failure to avoid repeated attempts
-        self._debug("Location resolution failed for %s", postal_code)
-        self._location_cache[cache_key] = (None, None)
-        return None, None
 
-    def _try_pgeocode(self, postal_code: str, country: str) -> Tuple[Optional[str], Optional[str]]:
-        """Use pgeocode to resolve postal code to city/province"""
+        city, province = self._lookup(postal_code, country)
+        if city and province:
+            self._debug("Resolution SUCCESS: %s, %s", city, province)
+        else:
+            self._debug("Location resolution failed for %s", postal_code)
+
+        result = (city, province) if (city and province) else (None, None)
+        self._location_cache[cache_key] = result
+        return result
+
+    def _lookup(self, postal_code: str, country: str) -> Tuple[Optional[str], Optional[str]]:
+        """Look up the bundled dataset and extract city/province."""
         try:
-            geocoder = self._ca_geocoder if country == "CAN" else self._us_geocoder
-            if geocoder is None:
-                self._debug("No pgeocode geocoder available for country %s", country)
+            geo_country = _COUNTRY_MAP.get(country)
+            if geo_country is None:
+                self._debug("Unsupported country for geo resolution: %s", country)
                 return None, None
-            
-            # Query postal code
-            clean_postal = postal_code.replace(" ", "")
-            self._debug("pgeocode querying %s", clean_postal)
-            
-            result = geocoder.query_postal_code(clean_postal)
-            
-            # For Canadian postal codes, if full code fails, try first 3 characters
-            if (result is None or result.empty or self._is_result_invalid(result)) and country == "CAN" and len(clean_postal) >= 3:
-                partial_postal = clean_postal[:3]
-                self._debug("pgeocode full code failed, trying partial code: %s", partial_postal)
-                result = geocoder.query_postal_code(partial_postal)
-            
-            if result is not None and hasattr(result, 'empty') and not result.empty:
-                # DIAGNOSTIC: Show all available fields in debug mode
-                if self._is_debug_enabled():
-                    self._debug("pgeocode available fields:")
-                    if hasattr(result, 'keys'):
-                        for key in result.keys():
-                            value = result.get(key) if hasattr(result, 'get') else getattr(result, key, None)
-                            self._debug("  %s: %s", key, value)
-                    elif hasattr(result, '__dict__'):
-                        for key, value in result.__dict__.items():
-                            self._debug("  %s: %s", key, value)
-                    else:
-                        self._debug("  result type: %s", type(result))
-                        self._debug("  result dir: %s", str(dir(result)[:10]))  # First 10 attributes
-                
-                # Get state/province code directly from pgeocode
-                province_code = result.get('state_code') if hasattr(result, 'get') else getattr(result, 'state_code', None)
-                
-                # Extract city using optimal hierarchy based on country
-                city = self._extract_optimal_city_name(result, country)
-                
-                self._debug("pgeocode raw result - city: %s, province_code: %s", city, province_code)
-                
-                # Clean up the results
-                if city and isinstance(city, str) and city.strip() and str(city).lower() != 'nan':
-                    city = city.strip()
-                else:
-                    city = None
-                    
-                if province_code and isinstance(province_code, str) and province_code.strip() and str(province_code).lower() != 'nan':
-                    province_code = province_code.strip()
-                else:
-                    province_code = None
-                
-                if city and province_code:
-                    self._debug("pgeocode cleaned result - city: %s, province_code: %s", city, province_code)
-                    return city, province_code
-                else:
-                    self._debug("pgeocode returned incomplete data after cleaning")
-            else:
-                self._debug("pgeocode returned empty or invalid result")
-                
+
+            db = _load_postal_db()
+            if not db:
+                self._debug("Postal dataset unavailable")
+                return None, None
+
+            clean_postal = postal_code.replace(" ", "").upper()
+            self._debug("Looking up %s/%s", geo_country, clean_postal)
+
+            result = db.get((geo_country, clean_postal))
+
+            # Canada: full 6-character codes are not in the FSA-level data, so
+            # fall back to the first 3 characters (the FSA).
+            if result is None and country == "CAN" and len(clean_postal) >= 3:
+                partial = clean_postal[:3]
+                self._debug("Full code not found, trying FSA: %s", partial)
+                result = db.get((geo_country, partial))
+
+            if not result:
+                self._debug("No match for %s/%s", geo_country, clean_postal)
+                return None, None
+
+            if self._is_debug_enabled():
+                self._debug("Postal record fields:")
+                for key, value in result.items():
+                    self._debug("  %s: %s", key, value)
+
+            province_code = result.get("state_code")
+            city = self._extract_optimal_city_name(result, country)
+
+            city = city.strip() if (city and city.strip()) else None
+            province_code = province_code.strip() if (province_code and province_code.strip()) else None
+
+            if city and province_code:
+                self._debug("Resolved %s -> %s, %s", clean_postal, city, province_code)
+                return city, province_code
+
+            self._debug("Incomplete data for %s after extraction", clean_postal)
+
         except Exception as e:
-            self._debug("pgeocode lookup failed for %s: %s", postal_code, str(e))
-        
+            self._debug("Lookup failed for %s: %s", postal_code, str(e))
+
         return None, None
 
     def _is_debug_enabled(self) -> bool:
@@ -160,101 +161,81 @@ class Geocoder:
         has_show_lineup = any('--show-lineup' in arg for arg in args)
         has_debug = any('--debug' in arg for arg in args)
         console_debug = has_show_lineup and has_debug
-        
+
         # Check if logging debug is enabled
         logging_debug = logging.getLogger().isEnabledFor(logging.DEBUG)
-        
+
         return console_debug or logging_debug
 
     def _extract_optimal_city_name(self, result, country: str) -> Optional[str]:
         """
-        Extract optimal city name using pgeocode's hierarchy
-        Canada: community_name → county_name → place_name (cleaned)
-        USA: place_name → county_name
+        Extract optimal city name using the GeoNames field hierarchy
+        Canada: community_name -> county_name -> place_name (cleaned)
+        USA: place_name -> county_name
         """
         def get_field(field_name):
-            value = result.get(field_name) if hasattr(result, 'get') else getattr(result, field_name, None)
+            value = result.get(field_name)
             return value if value and str(value).lower() not in ['nan', 'none', ''] else None
-        
+
         if country == "CAN":
             # Canada: Try community_name first (most generic)
             city = get_field('community_name')
             if city:
                 self._debug("Using community_name: '%s'", city)
                 return city
-            
+
             # Fallback to county_name
             city = get_field('county_name')
             if city:
                 self._debug("Using county_name: '%s'", city)
                 return city
-                
+
             # Last resort: clean place_name
             city = get_field('place_name')
             if city:
                 cleaned_city = self._extract_generic_city_name(city)
-                self._debug("Using cleaned place_name: '%s' → '%s'", city, cleaned_city)
+                self._debug("Using cleaned place_name: '%s' -> '%s'", city, cleaned_city)
                 return cleaned_city
-                
+
         else:
             # USA: place_name is usually already generic
             city = get_field('place_name')
             if city:
                 self._debug("Using place_name: '%s'", city)
                 return city
-                
+
             # Fallback to county_name if needed
             city = get_field('county_name')
             if city:
                 self._debug("Using county_name: '%s'", city)
                 return city
-        
+
         return None
-    
+
     def _extract_generic_city_name(self, city_name: str) -> str:
         """
         Extract generic city name from detailed place names (fallback only)
-        Examples: 
-        - "Edmonton (North Downtown)" → "Edmonton"
-        - "Saint-Jean-sur-Richelieu Central" → "Saint-Jean-sur-Richelieu"
+        Examples:
+        - "Edmonton (North Downtown)" -> "Edmonton"
+        - "Saint-Jean-sur-Richelieu Central" -> "Saint-Jean-sur-Richelieu"
         """
         if not city_name:
             return city_name
-            
+
         # Remove parenthetical descriptions first
         if '(' in city_name:
             city_name = city_name.split('(')[0].strip()
-        
+
         # Remove common directional/area suffixes
         directional_suffixes = [
             ' East', ' West', ' North', ' South', ' Central',
             ' Northeast', ' Northwest', ' Southeast', ' Southwest',
             ' Downtown', ' Uptown', ' Midtown'
         ]
-        
+
         for suffix in directional_suffixes:
             if city_name.endswith(suffix):
                 city_name = city_name[:-len(suffix)].strip()
                 break
-        
-        return city_name
 
-    def _is_result_invalid(self, result) -> bool:
-        """Check if pgeocode result is invalid (contains only NaN values)"""
-        try:
-            if not hasattr(result, 'get') and not hasattr(result, 'place_name'):
-                return True
-                
-            city = result.get('place_name') if hasattr(result, 'get') else getattr(result, 'place_name', None)
-            province_code = result.get('state_code') if hasattr(result, 'get') else getattr(result, 'state_code', None)
-            province_name = result.get('state_name') if hasattr(result, 'get') else getattr(result, 'state_name', None)
-            
-            # If all important fields are NaN or None, consider invalid
-            city_invalid = not city or str(city).lower() in ['nan', 'none', '']
-            province_code_invalid = not province_code or str(province_code).lower() in ['nan', 'none', '']
-            province_name_invalid = not province_name or str(province_name).lower() in ['nan', 'none', '']
-            
-            return city_invalid and province_code_invalid and province_name_invalid
-            
-        except Exception:
-            return True
+        return city_name
