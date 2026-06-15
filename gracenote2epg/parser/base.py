@@ -52,10 +52,11 @@ class DataParser:
         """
         # Get lineup configuration
         lineup_config = config_manager.get_lineup_config()
+        workers = config_manager.get_download_workers()
 
         # PHASE 1: Download guide blocks (delegated to downloader)
         download_success = self.guide_downloader.download_guide_blocks(
-            grid_time_start, day_hours, lineup_config, refresh_hours
+            grid_time_start, day_hours, lineup_config, refresh_hours, workers
         )
 
         if not download_success:

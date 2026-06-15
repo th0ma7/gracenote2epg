@@ -292,6 +292,21 @@ class CacheManager:
             logging.warning("Error validating/saving %s: %s", filename, str(e))
             return False
 
+    def guide_block_status(self, grid_time: float, filename: str, refresh_hours: int = 48) -> str:
+        """Decide what a guide block needs without downloading.
+
+        Returns "cached" (up to date), "fetch" (new or refresh-due) or "missing"
+        (absent while --norefresh prevents downloading). Mirrors the decision in
+        download_guide_block_safe so the parallel path stays consistent.
+        """
+        file_exists = (self.cache_dir / filename).exists()
+        if refresh_hours == 0:
+            return "cached" if file_exists else "missing"
+        if not file_exists:
+            return "fetch"
+        force_refresh = (grid_time - time.time()) < (refresh_hours * 3600)
+        return "fetch" if force_refresh else "cached"
+
     def download_guide_block_safe(
         self, downloader, grid_time: float, filename: str, url: str, refresh_hours: int = 48
     ) -> bool:
