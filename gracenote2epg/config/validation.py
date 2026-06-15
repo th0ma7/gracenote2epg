@@ -93,10 +93,10 @@ class ConfigValidator:
     def validate_config_consistency(self, settings: Dict[str, Any]) -> Dict[str, str]:
         """
         Validate configuration consistency between zipcode and lineupid
-        
+
         Args:
             settings: Configuration settings dictionary
-            
+
         Returns:
             Dict with any changes made for consistency
         """
@@ -140,9 +140,7 @@ class ConfigValidator:
                 # Lineupid contains location but no zipcode configured - auto-extract
                 normalized_extracted = extracted_location.replace(" ", "")
                 settings["zipcode"] = normalized_extracted
-                changes["zipcode"] = (
-                    f"(empty) → {normalized_extracted} (extracted from {lineupid})"
-                )
+                changes["zipcode"] = f"(empty) → {normalized_extracted} (extracted from {lineupid})"
                 logging.info(
                     "Auto-extracted zipcode from lineupid: %s → %s", lineupid, normalized_extracted
                 )

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .handler import CopyTruncateTimedRotatingFileHandler
 
+
 class LogRotationManager:
     """Manages log rotation configuration and setup with unified retention policies."""
 

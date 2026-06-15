@@ -36,7 +36,9 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(self.sm.parse_image_sources(p), [])
 
     def test_missing_status_defaults_enabled(self):
-        p = _write(f"<settings><imagesources><source>{FANCYBITS}</source></imagesources></settings>")
+        p = _write(
+            f"<settings><imagesources><source>{FANCYBITS}</source></imagesources></settings>"
+        )
         self.assertEqual(self.sm.parse_image_sources(p), [(FANCYBITS, True)])
 
 
@@ -59,7 +61,7 @@ class RoundTripTests(unittest.TestCase):
 
     def test_block_preserved_on_rewrite(self):
         p = _write(
-            "<settings version=\"5\">"
+            '<settings version="5">'
             f'<imagesources><source status="enabled">{TVTV}</source></imagesources>'
             "</settings>"
         )

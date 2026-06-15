@@ -386,8 +386,6 @@ class DownloaderStatsMixin:
             "total": self.downloaded_count + self.cached_count + self.failed_count,
             "success_rate": self._calculate_success_rate(),
             "cache_efficiency": (
-                (self.cached_count / cached_or_downloaded * 100)
-                if cached_or_downloaded > 0
-                else 0
+                (self.cached_count / cached_or_downloaded * 100) if cached_or_downloaded > 0 else 0
             ),
         }

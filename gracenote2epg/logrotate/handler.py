@@ -17,6 +17,7 @@ from typing import Optional, Dict, Tuple
 
 from . import periods
 
+
 class CopyTruncateTimedRotatingFileHandler(logging.handlers.BaseRotatingHandler):
     """
     Custom log rotation handler that uses copytruncate strategy.

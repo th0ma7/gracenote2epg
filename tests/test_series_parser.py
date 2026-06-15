@@ -74,17 +74,13 @@ class DisplayRatingTests(unittest.TestCase):
         self.p = SeriesParser()
 
     def test_display_rating_fills_missing_guide_rating(self):
-        d = _details(
-            upcomingEpisodeTab=[{"tmsID": "EP000000010001", "displayRating": "TV-14"}]
-        )
+        d = _details(upcomingEpisodeTab=[{"tmsID": "EP000000010001", "displayRating": "TV-14"}])
         ep = {"epid": "EP000000010001"}  # no eprating from the guide
         self.p.parse_series_details(ep, d, "EP00000001")
         self.assertEqual(ep["eprating"], "TV-14")
 
     def test_guide_rating_takes_precedence(self):
-        d = _details(
-            upcomingEpisodeTab=[{"tmsID": "EP000000010001", "displayRating": "TV-14"}]
-        )
+        d = _details(upcomingEpisodeTab=[{"tmsID": "EP000000010001", "displayRating": "TV-14"}])
         ep = {"epid": "EP000000010001", "eprating": "PG"}  # guide already set it
         self.p.parse_series_details(ep, d, "EP00000001")
         self.assertEqual(ep["eprating"], "PG")

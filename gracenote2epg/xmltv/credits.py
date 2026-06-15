@@ -137,4 +137,3 @@ class CreditsMixin:
                             )
 
                 fh.write("\t\t</credits>\n")
-

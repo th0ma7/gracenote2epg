@@ -43,7 +43,8 @@ class CacheManager:
         """Move legacy flat *.json series files into the series subdirectory."""
         try:
             legacy = [
-                f for f in self.cache_dir.glob("*.json")
+                f
+                for f in self.cache_dir.glob("*.json")
                 if f.is_file() and not f.name.endswith(".json.gz")
             ]
             if not legacy:
@@ -54,9 +55,7 @@ class CacheManager:
                     cache_file.replace(target)
                 except Exception as e:
                     logging.debug("Could not migrate cached series %s: %s", cache_file.name, e)
-            logging.info(
-                "Migrated %d cached series file(s) into %s", len(legacy), self.series_dir
-            )
+            logging.info("Migrated %d cached series file(s) into %s", len(legacy), self.series_dir)
         except Exception as e:
             logging.debug("Legacy series cache migration skipped: %s", e)
 
@@ -401,4 +400,3 @@ class CacheManager:
             )
 
         logging.info("Show cache cleanup completed")
-

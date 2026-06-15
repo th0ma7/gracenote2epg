@@ -9,7 +9,7 @@ Main interface:
 
 The module is organized into specialized components:
     - validation: Configuration validation and consistency checks
-    - settings: XML settings parsing and management  
+    - settings: XML settings parsing and management
     - migration: Configuration migration and cleanup
     - lineup: Lineup ID management and auto-detection
     - retention: Cache and retention policy management
@@ -18,7 +18,7 @@ The module is organized into specialized components:
 
 Usage:
     from gracenote2epg.config import ConfigManager
-    
+
     config_manager = ConfigManager("/path/to/config.xml")
     config = config_manager.load_config()
 """

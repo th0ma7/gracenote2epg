@@ -89,7 +89,6 @@ class XmltvGenerator(
             logging.exception("Exception in XMLTV generation: %s", str(e))
             return False
 
-
     def _print_header(self, fh, encoding: str):
         """Print XMLTV header"""
         logging.info("Creating xmltv.xml file...")
@@ -99,8 +98,6 @@ class XmltvGenerator(
             '<tv source-info-url="http://tvschedule.gracenote.com/" source-info-name="gracenote.com">\n'
         )
 
-
     def _print_footer(self, fh):
         """Print XMLTV footer"""
         fh.write("</tv>\n")
-

@@ -35,13 +35,15 @@ class ConfigMigrator:
     def __init__(self):
         self._backup_file_created: str = None
 
-    def analyze_migration_needs(self, 
-                               all_settings: Dict[str, Any], 
-                               valid_settings: Dict[str, Any],
-                               original_order: List[str]) -> Tuple[bool, List[str], List[str], bool]:
+    def analyze_migration_needs(
+        self,
+        all_settings: Dict[str, Any],
+        valid_settings: Dict[str, Any],
+        original_order: List[str],
+    ) -> Tuple[bool, List[str], List[str], bool]:
         """
         Analyze what migration operations are needed
-        
+
         Returns:
             tuple: (migration_needed, deprecated_settings, unknown_settings, ordering_needed)
         """
@@ -77,6 +79,7 @@ class ConfigMigrator:
 
         # Check if ordering needs to be corrected (this would be done by SettingsManager)
         from .settings import SettingsManager
+
         settings_manager = SettingsManager()
         ordering_needed = settings_manager.check_ordering_needed(original_order, valid_settings)
 
@@ -86,7 +89,7 @@ class ConfigMigrator:
         """Create backup of configuration file before migration"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_file = f"{config_file}.backup.{timestamp}"
-        
+
         try:
             shutil.copy2(config_file, backup_file)
             logging.info("Created configuration backup: %s", backup_file)
@@ -96,12 +99,14 @@ class ConfigMigrator:
             logging.error("Failed to create backup: %s", str(e))
             raise
 
-    def perform_migration(self,
-                         config_file: Path,
-                         valid_settings: Dict[str, Any],
-                         removed_settings: List[str],
-                         ordering_needed: bool = False,
-                         version_upgrade: bool = False) -> bool:
+    def perform_migration(
+        self,
+        config_file: Path,
+        valid_settings: Dict[str, Any],
+        removed_settings: List[str],
+        ordering_needed: bool = False,
+        version_upgrade: bool = False,
+    ) -> bool:
         """
         Perform configuration migration with backup
 
@@ -110,12 +115,12 @@ class ConfigMigrator:
         """
         try:
             # Create backup only if we're making changes
-            backup_file = None
             if removed_settings or ordering_needed or version_upgrade:
-                backup_file = self.create_backup(config_file)
+                self.create_backup(config_file)
 
             # Write cleaned and ordered configuration
             from .settings import SettingsManager
+
             settings_manager = SettingsManager()
             settings_manager.write_clean_config(config_file, valid_settings)
 
@@ -132,6 +137,7 @@ class ConfigMigrator:
                 logging.info("  Removed settings: %s", ", ".join(removed_settings))
 
             from .settings import SettingsManager
+
             logging.info("  Updated to configuration version %s", SettingsManager.CONFIG_VERSION)
 
             # User notification about cleanup/migration - simplified
@@ -145,42 +151,24 @@ class ConfigMigrator:
             logging.error("Continuing with existing configuration...")
             return False
 
-    def update_config_with_defaults(self, 
-                                   config_file: Path, 
-                                   new_settings: Dict[str, Any],
-                                   version: str) -> bool:
+    def update_config_with_defaults(
+        self, config_file: Path, new_settings: Dict[str, Any], version: str
+    ) -> bool:
         """
         Update configuration file to include newly added default settings
-        
+
         Returns:
             bool: True if update was successful
         """
         try:
             # Re-read the original config file to get the unmodified values
             import xml.etree.ElementTree as ET
+
             tree = ET.parse(config_file)
             root = tree.getroot()
 
-            # Get existing settings to preserve their ORIGINAL values
-            existing_settings = {}
-            for setting in root.findall("setting"):
-                setting_id = setting.get("id")
-
-                # Get value based on version (same logic as in SettingsManager)
-                if version == "2":
-                    setting_value = setting.text
-                else:
-                    setting_value = setting.get("value")
-                    if setting_value is None:
-                        setting_value = setting.text
-                    if setting_value == "":
-                        setting_value = None
-
-                # Only include valid settings that we want to preserve
-                from .validation import ConfigValidator
-                validator = ConfigValidator()
-                if setting_id in validator.VALID_SETTINGS:
-                    existing_settings[setting_id] = setting_value
+            # Preserve existing valid settings with their ORIGINAL values
+            existing_settings = self._read_existing_valid_settings(root, version)
 
             # Add only the truly new settings (those not in original file)
             for key, value in new_settings.items():
@@ -196,6 +184,7 @@ class ConfigMigrator:
 
             # Write the complete configuration with preserved original values
             from .settings import SettingsManager
+
             settings_manager = SettingsManager()
             settings_manager.write_clean_config(config_file, existing_settings)
 
@@ -211,11 +200,36 @@ class ConfigMigrator:
             logging.error("Error updating configuration file with defaults: %s", str(e))
             return False
 
+    @staticmethod
+    def _setting_value(setting, version: str):
+        """Extract a <setting>'s value honouring the config schema version."""
+        if version == "2":
+            return setting.text
+        value = setting.get("value")
+        if value is None:
+            value = setting.text
+        if value == "":
+            value = None
+        return value
+
+    def _read_existing_valid_settings(self, root, version: str) -> Dict[str, Any]:
+        """Read valid settings (with their original values) from a parsed config."""
+        from .validation import ConfigValidator
+
+        valid = ConfigValidator().VALID_SETTINGS
+        existing = {}
+        for setting in root.findall("setting"):
+            setting_id = setting.get("id")
+            if setting_id in valid:
+                existing[setting_id] = self._setting_value(setting, version)
+        return existing
+
     def notify_config_upgrade(self, added_defaults: List[str]):
         """Notify user about configuration upgrade with visible warning"""
         backup_file = self._backup_file_created
 
         from .settings import SettingsManager
+
         logging.warning("=" * 60)
         logging.warning("CONFIGURATION UPGRADED TO VERSION %s", SettingsManager.CONFIG_VERSION)
         if backup_file:
@@ -237,29 +251,31 @@ class ConfigMigrator:
         """Validate that migration was successful by attempting to parse the result"""
         try:
             import xml.etree.ElementTree as ET
+
             tree = ET.parse(config_file)
             root = tree.getroot()
-            
+
             # Basic validation
             if root.tag != "settings":
                 logging.error("Migration validation failed: root element is not 'settings'")
                 return False
-                
+
             from .settings import SettingsManager
+
             if root.attrib.get("version") != SettingsManager.CONFIG_VERSION:
                 logging.warning(
                     "Migration validation: version is not '%s'", SettingsManager.CONFIG_VERSION
                 )
-                
+
             # Count settings
             settings_count = len(root.findall("setting"))
             if settings_count == 0:
                 logging.error("Migration validation failed: no settings found")
                 return False
-                
+
             logging.debug("Migration validation passed: %d settings found", settings_count)
             return True
-            
+
         except Exception as e:
             logging.error("Migration validation failed: %s", str(e))
             return False
@@ -269,17 +285,17 @@ class ConfigMigrator:
         if not self._backup_file_created:
             logging.error("Cannot rollback: no backup file available")
             return False
-            
+
         try:
             backup_path = Path(self._backup_file_created)
             if not backup_path.exists():
                 logging.error("Cannot rollback: backup file not found: %s", backup_path)
                 return False
-                
+
             shutil.copy2(backup_path, config_file)
             logging.info("Configuration rolled back from backup: %s", backup_path)
             return True
-            
+
         except Exception as e:
             logging.error("Failed to rollback configuration: %s", str(e))
             return False

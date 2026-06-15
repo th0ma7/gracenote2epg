@@ -6,45 +6,46 @@ applying enhanced metadata to episode data. Contains only parsing logic.
 """
 
 import logging
-from typing import Dict, Optional
+from typing import Dict
 
 from ..utils import TimeUtils
 
 
 class SeriesParser:
     """Parses extended series details"""
-    
-    def parse_series_details(self, episode_data: Dict, series_details: Dict, 
-                            series_id: str) -> bool:
+
+    def parse_series_details(
+        self, episode_data: Dict, series_details: Dict, series_id: str
+    ) -> bool:
         """
         Parse and apply series details to episode data
-        
+
         Args:
             episode_data: Episode data dictionary to enhance
             series_details: Series details JSON from API
             series_id: Series ID for logging
-            
+
         Returns:
             bool: True if successful
         """
         try:
             # Extract and apply extended series description
             self._apply_series_description(episode_data, series_details, series_id)
-            
+
             # Process images
             self._apply_series_images(episode_data, series_details)
-            
+
             # Handle genres with movie detection
             self._apply_series_genres(episode_data, series_details, series_id)
-            
+
             # Process cast and crew credits (movies and TV series)
             self._apply_credits(episode_data, series_details, series_id)
 
             # Process original air date from upcoming episodes
             self._apply_original_air_date(episode_data, series_details, series_id)
-            
+
             return True
-            
+
         except Exception as e:
             logging.warning(
                 "Error processing series details for %s: %s",
@@ -52,9 +53,8 @@ class SeriesParser:
                 str(e),
             )
             return False
-    
-    def _apply_series_description(self, episode_data: Dict, series_details: Dict,
-                                 series_id: str):
+
+    def _apply_series_description(self, episode_data: Dict, series_details: Dict, series_id: str):
         """Extract and apply extended series description"""
         series_desc = series_details.get("seriesDescription")
         if series_desc and str(series_desc).strip():
@@ -70,19 +70,18 @@ class SeriesParser:
         episode_data["epimage"] = series_details.get("seriesImage")
         episode_data["epfan"] = series_details.get("backgroundImage")
 
-    def _apply_series_genres(self, episode_data: Dict, series_details: Dict,
-                            series_id: str):
+    def _apply_series_genres(self, episode_data: Dict, series_details: Dict, series_id: str):
         """Parse and apply genres with movie detection"""
         ep_genres = series_details.get("seriesGenres")
-        
+
         # Special handling for movies
-        if series_id.startswith("MV"): 
+        if series_id.startswith("MV"):
             ep_genres = "Movie|" + ep_genres if ep_genres else "Movie"
-            
+
         if ep_genres:
             episode_data["epgenres"] = ep_genres.split("|")
             logging.debug("Applied genres for %s: %s", series_id, ep_genres)
-    
+
     def _apply_credits(self, episode_data: Dict, series_details: Dict, series_id: str):
         """Parse and apply cast and crew credits (movies and TV series).
 
@@ -110,9 +109,8 @@ class SeriesParser:
                 len(cast) if isinstance(cast, list) else 0,
                 len(crew) if isinstance(crew, list) else 0,
             )
-    
-    def _apply_original_air_date(self, episode_data: Dict, series_details: Dict,
-                                series_id: str):
+
+    def _apply_original_air_date(self, episode_data: Dict, series_details: Dict, series_id: str):
         """Parse original air date from upcoming episodes data"""
         ep_list = series_details.get("upcomingEpisodeTab", [])
         if not isinstance(ep_list, list):
@@ -125,7 +123,7 @@ class SeriesParser:
         for airing in ep_list:
             if not isinstance(airing, dict):
                 continue
-                
+
             if ep_id.lower() == airing.get("tmsID", "").lower():
                 # Process original air date for TV shows (not movies)
                 if not series_id.startswith("MV"):

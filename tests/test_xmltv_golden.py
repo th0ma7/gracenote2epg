@@ -49,8 +49,18 @@ def build_schedule():
                 "epcredits": [
                     {"role": "director", "name": "Jane Director", "priority": "1"},
                     # Listed out of billing order; priority should reorder them.
-                    {"role": "actor", "name": "John Lead", "characterName": "Hero", "priority": "2"},
-                    {"role": "actor", "name": "Amy Second", "characterName": "Sidekick", "priority": "1"},
+                    {
+                        "role": "actor",
+                        "name": "John Lead",
+                        "characterName": "Hero",
+                        "priority": "2",
+                    },
+                    {
+                        "role": "actor",
+                        "name": "Amy Second",
+                        "characterName": "Sidekick",
+                        "priority": "1",
+                    },
                     {"role": "voice", "name": "Sam Voice"},
                 ],
             },
@@ -114,9 +124,7 @@ class XmltvGoldenTests(unittest.TestCase):
             "golden file missing; run: python3 -m tests.test_xmltv_golden --update-golden",
         )
         expected = GOLDEN.read_text(encoding="utf-8")
-        self.assertEqual(
-            produced, expected, "XMLTV output drifted from the golden file"
-        )
+        self.assertEqual(produced, expected, "XMLTV output drifted from the golden file")
 
 
 def _update_golden():

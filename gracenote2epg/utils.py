@@ -69,7 +69,9 @@ class TimeUtils:
         return start_dt, end_dt
 
     @staticmethod
-    def parse_gracenote_time(value: Optional[str], fix_missing_seconds: bool = False) -> Optional[int]:
+    def parse_gracenote_time(
+        value: Optional[str], fix_missing_seconds: bool = False
+    ) -> Optional[int]:
         """Convert a Gracenote ISO-8601 UTC timestamp (YYYY-MM-DDTHH:MM:SSZ) to
         epoch seconds, or None if it is empty/unparseable.
 

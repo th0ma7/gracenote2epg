@@ -6,11 +6,11 @@ intelligent caching, and specialized downloaders for guide and series data.
 """
 
 from .base import OptimizedDownloader
-from .guide import GuideDownloader  
+from .guide import GuideDownloader
 from .series import SeriesDownloader
 
 __all__ = [
     "OptimizedDownloader",
-    "GuideDownloader", 
+    "GuideDownloader",
     "SeriesDownloader",
 ]

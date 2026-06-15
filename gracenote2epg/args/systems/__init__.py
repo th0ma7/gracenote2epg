@@ -11,8 +11,8 @@ from .raspberry import RaspberryDetector
 from .linux import LinuxDetector
 
 __all__ = [
-    "SystemDetector",     # Main orchestrator
-    "SynologyDetector",   # Synology NAS specific
+    "SystemDetector",  # Main orchestrator
+    "SynologyDetector",  # Synology NAS specific
     "RaspberryDetector",  # Raspberry Pi specific
-    "LinuxDetector",      # Generic Linux fallback
+    "LinuxDetector",  # Generic Linux fallback
 ]
