@@ -4,70 +4,84 @@ Rethink of the parallel download manager prototyped in PR #2
 (`parallel_download` branch). **Work in progress** — started as a foundation to
 continue from; nothing here is wired into the running downloader yet.
 
-## Why PR #2 stalled (the diagnosis)
+## Why PR #2 stalled (revised after real testing)
 
 PR #2 built a sophisticated parallel system (~4000 lines): `UnifiedDownloadManager`
 → `PreciseWorkerPool` (ThreadPoolExecutor recreated on the fly) →
-`AdaptiveStrategy` (tunes the **worker count** from success rate / latency / 429s)
-→ `RateLimiter` + `WAFDetector` → `EventDrivenMonitor` (real-time, web dashboard
-on port 9989). It blocked after ~300–500 series items.
+`AdaptiveStrategy` (tunes the **worker count**) → `RateLimiter` + `WAFDetector`
+→ `EventDrivenMonitor` (web dashboard on port 9989). It blocked after ~300–500
+series items.
 
-The root cause is **structural, not a tuning bug**:
+**Measured against the live API** (see findings below), the likely culprit is the
+**connection pattern, not request volume**:
 
-- The bottleneck is a **server-side cumulative volume limit** (Gracenote sits
-  behind an AWS WAF). It blocks after a few hundred requests per session/IP,
-  regardless of how clever the client is.
-- **Concurrency reaches that ceiling *sooner*** — more workers = a higher request
-  rate = the WAF's volume threshold trips faster. Hence "you had to reduce the
-  parallelism before getting there."
-- Reactive adaptation (cut workers when 429s appear) is **too late**: by the time
-  429s show up, the burst has already tripped the WAF, and a session/IP block
-  doesn't clear by simply reducing workers.
+- Sequential downloads **never block**, even for large runs — the server tolerates
+  a steady stream fine.
+- PR #2's series path used `urllib` with a **new TLS connection per request**, run
+  **in parallel** → a *connection-churn* pattern (many simultaneous handshakes)
+  that AWS WAF flags as bot/DDoS-like. That, not the request count, most plausibly
+  tripped the block around 300–500.
+- **Keep-alive worker connections** (a few persistent, browser-like connections,
+  each reused serially) avoid that pattern.
 
-**Conclusion:** for this API the goal is **maximum *sustainable* throughput**
-(stay just under the WAF's sustained-rate ceiling indefinitely), not peak
-throughput. Optimizing concurrency optimizes the wrong axis.
+### Live findings (gracenote overviewDetails)
+
+- **Keep-alive is a big win**: first request ~0.38s (cold TLS), then ~0.13–0.15s
+  per request on the reused connection (~2.5× faster).
+- **Single User-Agent is fine** (no rotation needed): 40 sequential requests, no
+  block. Rotating the UA on one session is *less* natural than a real browser.
+- **Bounded parallelism works**: 4 keep-alive workers → ~24 req/s, ~3.4× speedup,
+  no block.
+
+**Conclusion:** keep parallelism — it is the real win, especially for frequent
+small refreshes (6–12h) where the download delta is small and far below any wall.
+Use **bounded keep-alive workers** for speed, with a shared rate governor as a
+safety backstop for cold/full runs.
 
 ## What to keep from PR #2
 
 - The clean **task/result abstractions** (`DownloadTask` / `DownloadResult` /
   `TaskMetrics`) — elegant and reusable.
-- The **WAF detection + backoff** idea — but applied to a single paced stream.
-- The **strategy profiles** idea (conservative/balanced/aggressive) — repurposed
-  as *pacing* profiles, not worker counts.
-- The **progress/monitoring** idea — drastically simplified (a callback; no web
-  dashboard).
+- **Bounded parallelism** — it is the real win (3–4× on small/frequent refreshes).
+- The **WAF detection + backoff** idea — as a shared safety governor.
+- The **strategy profiles** idea — repurposed as small profiles (worker count +
+  rate cap).
+- The **progress** idea — a simple callback; no web dashboard.
 
 ## What to drop / rethink
 
-- The worker-pool / adaptive-worker-count machinery (`worker_pool.py`,
-  `adaptive.py`, the pool-recreation in `manager.py`).
+- The **adaptive-worker-count + pool-recreation** machinery (`worker_pool.py`'s
+  ThreadPoolExecutor churn, `adaptive.py`). Use a fixed small pool of long-lived
+  keep-alive workers instead.
+- The **per-request new connection** for series (`urllib`) — replace with
+  keep-alive (likely the actual cause of the old parallel block).
+- **User-Agent rotation** — a single constant UA is fine and more natural.
 - The 659-line monitoring + port-9989 web API.
 - It predates the modular refactor; the redesign targets the current
   `gracenote2epg/downloader/` package.
 
 ## Proposed design
 
-1. **Pacing, not parallelism.** A `RateController` using **AIMD** (TCP-style):
-   additive-increase of the request *rate* on sustained success, multiplicative-
-   decrease on a 429/WAF signal. It converges to a sawtooth just under the
-   server's ceiling and stays there — the highest rate that doesn't get blocked.
-2. **Tiny, targeted concurrency.** Optional 2–3 workers **only for guide blocks**
-   (few, larger files → overlap latency with negligible volume). Series details
-   (the 300–500 problem) stay a single paced stream.
-3. **Cache is still the main lever.** After the first run, 95 %+ of series are
-   cached, so only the *new* delta downloads — pacing only needs to be good
-   enough for the cold run / large deltas. (Future: resume across runs so a
-   blocked run continues next time.)
-4. **Simple reporting:** a progress callback + a stats summary (`TaskMetrics`).
+1. **Bounded keep-alive worker pool.** A small fixed pool (default ~4), each
+   worker owning **one persistent connection** (its own `requests.Session`) and
+   pulling tasks from a shared queue — so each worker downloads its share
+   serially over a reused connection. This is the speed win for the frequent
+   small refreshes.
+2. **Shared rate governor (backstop).** A single `RateController` (AIMD) shared
+   by all workers caps the *combined* request rate and, on a 429/WAF signal,
+   backs off globally (and may shed workers). On a normal small refresh it never
+   triggers → full parallel speed; it protects cold/full runs.
+3. **Cache stays the main lever.** After the first run, 95 %+ of series are
+   cached, so only the *new* delta downloads.
+4. **Simple reporting:** a progress callback + `TaskMetrics` summary.
 
 ## Status / next steps
 
 - [x] `downloader/tasks.py` — `DownloadTask` / `DownloadResult` / `TaskMetrics`.
-- [x] `downloader/pacing.py` — `RateController` (AIMD) + WAF cooldown, with tests.
-- [ ] `PacedDownloader` that drives tasks through the controller (single stream
-      + optional small guide concurrency), reusing the existing HTTP engine /
-      WAF detection in `downloader/base.py`.
-- [ ] Wire into `SeriesDownloader` / `GuideDownloader` behind a flag; compare
-      against the current sequential path on a cold run.
-- [ ] Decide config surface (a `download` strategy profile in the config).
+- [x] `downloader/pacing.py` — `RateController` (AIMD) shared governor, with tests.
+- [x] Live validation: keep-alive ~2.5× per-request; single UA fine; 4 keep-alive
+      workers ~3.4× and no block.
+- [ ] `PacedWorkerPool`: fixed pool of keep-alive workers sharing the governor.
+- [ ] Wire into `SeriesDownloader` / `GuideDownloader` behind a flag; compare to
+      the current sequential path on cold + warm runs.
+- [ ] Decide config surface (worker count + rate cap profile).
