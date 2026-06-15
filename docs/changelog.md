@@ -12,9 +12,11 @@ packages (`config/`, `args/`, `parser/`, `downloader/`, `xmltv/`, `logrotate/`)
 with no change to the generated guide.
 
 ### Added
-- **Cache layout**: extended series details are now stored in a `series/`
-  subdirectory, keeping the cache root limited to guide blocks for easier
-  inspection. Legacy flat caches are migrated automatically on first run (no
+- **Cache layout**: the cache is organised into `guide/` (guide blocks),
+  `series/` (TV series details, `SH*`) and `movies/` (movie details, `MV*`)
+  subdirectories, keeping the cache root limited to the generated guide and its
+  backups for easier inspection. Older caches (flat layout, or the earlier
+  `series/`-only layout) are migrated automatically on first run (no
   re-download).
 - **Richer program metadata**: crew (directors/writers/producers) is now
   included and credits are emitted for TV series, not just movies; credits are

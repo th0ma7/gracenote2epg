@@ -1,9 +1,10 @@
 """
 gracenote2epg.cache - Cache management
 
-Manages all caching operations for gracenote2epg: guide blocks, series
-details (stored under a series/ subdirectory), and XMLTV backups, with
-unified retention policies.
+Manages all caching operations for gracenote2epg. The cache is organised in
+subdirectories: guide/ for guide blocks, series/ for TV series details (SH*),
+movies/ for movie details (MV*); XMLTV files and their backups stay at the
+cache root. Includes unified retention policies.
 """
 
 import gzip
@@ -23,41 +24,65 @@ class CacheManager:
 
     def __init__(self, cache_dir: Path):
         self.cache_dir = Path(cache_dir)
-        # Series details live in a dedicated subdirectory so the cache root
-        # only holds the handful of guide blocks (YYYYMMDDHH.json.gz), keeping
-        # it small and easy to inspect manually.
+        # Organise the cache into focused subdirectories so the root stays clean
+        # and manual inspection is easy:
+        #   guide/  -> guide blocks (YYYYMMDDHH.json.gz)
+        #   series/ -> TV series details (SH*)
+        #   movies/ -> movie details (MV*)
+        # (xmltv.xml and its backups stay at the cache root.)
+        self.guide_dir = self.cache_dir / "guide"
         self.series_dir = self.cache_dir / "series"
+        self.movies_dir = self.cache_dir / "movies"
         # Create cache directories with proper 755 permissions (rwxr-xr-x)
-        for directory in (self.cache_dir, self.series_dir):
+        for directory in (self.cache_dir, self.guide_dir, self.series_dir, self.movies_dir):
             try:
                 directory.mkdir(parents=True, exist_ok=True, mode=0o755)
             except Exception:
                 # Fallback: create without mode specification (depends on umask)
                 directory.mkdir(parents=True, exist_ok=True)
-        # One-time migration: relocate any legacy flat series files (cached by
-        # older versions directly under the cache root) into series/ so existing
-        # caches are reused instead of re-downloaded.
-        self._migrate_legacy_series_cache()
+        # One-time migration of older cache layouts (no re-download).
+        self._migrate_cache_layout()
 
-    def _migrate_legacy_series_cache(self):
-        """Move legacy flat *.json series files into the series subdirectory."""
+    def _details_dir(self, series_id: str) -> Path:
+        """Subdirectory for a program's details: movies/ for MV*, else series/."""
+        return self.movies_dir if str(series_id).upper().startswith("MV") else self.series_dir
+
+    def _move_into(self, src: Path, dest_dir: Path) -> int:
+        """Move *src* into *dest_dir* unless already there; returns 1 if moved."""
+        target = dest_dir / src.name
         try:
-            legacy = [
+            if src.resolve() == target.resolve():
+                return 0
+            src.replace(target)
+            return 1
+        except Exception as e:
+            logging.debug("Could not migrate %s: %s", src.name, e)
+            return 0
+
+    def _migrate_cache_layout(self):
+        """Relocate files from older cache layouts into guide/series/movies."""
+        try:
+            moved = 0
+            # Guide blocks previously stored at the cache root -> guide/
+            for f in self.cache_dir.glob("*.json.gz"):
+                if f.is_file():
+                    moved += self._move_into(f, self.guide_dir)
+            # Detail files: legacy flat *.json at the root, plus MV* left in
+            # series/ by the first series/ layout -> the right subdirectory.
+            details = [
                 f
                 for f in self.cache_dir.glob("*.json")
                 if f.is_file() and not f.name.endswith(".json.gz")
             ]
-            if not legacy:
-                return
-            for cache_file in legacy:
-                target = self.series_dir / cache_file.name
-                try:
-                    cache_file.replace(target)
-                except Exception as e:
-                    logging.debug("Could not migrate cached series %s: %s", cache_file.name, e)
-            logging.info("Migrated %d cached series file(s) into %s", len(legacy), self.series_dir)
+            details += list(self.series_dir.glob("MV*.json"))
+            for f in details:
+                moved += self._move_into(f, self._details_dir(f.stem))
+            if moved:
+                logging.info(
+                    "Migrated %d cached file(s) into the guide/series/movies layout", moved
+                )
         except Exception as e:
-            logging.debug("Legacy series cache migration skipped: %s", e)
+            logging.debug("Cache layout migration skipped: %s", e)
 
     def backup_xmltv(self, xmltv_file: Path) -> Optional[Path]:
         """XMLTV: Always backup previous version"""
@@ -147,7 +172,7 @@ class CacheManager:
             invalid_count = 0
 
             # Process guide block files (format: YYYYMMDDHH.json.gz)
-            for cache_file in self.cache_dir.glob("*.json.gz"):
+            for cache_file in self.guide_dir.glob("*.json.gz"):
                 if len(cache_file.stem) == 10:  # YYYYMMDDHH
                     try:
                         date_str = cache_file.stem  # YYYYMMDDHH
@@ -203,8 +228,11 @@ class CacheManager:
             cleaned_count = 0
             kept_count = 0
 
-            # Process show detail files (stored under the series/ subdirectory)
-            for cache_file in self.series_dir.glob("*.json"):
+            # Process show/movie detail files (series/ and movies/ subdirectories)
+            detail_files = list(self.series_dir.glob("*.json")) + list(
+                self.movies_dir.glob("*.json")
+            )
+            for cache_file in detail_files:
                 series_id = cache_file.stem  # filename without .json
 
                 if series_id in active_series:
@@ -229,7 +257,7 @@ class CacheManager:
     def save_guide_block(self, filename: str, data: bytes) -> bool:
         """Save compressed guide block data"""
         try:
-            file_path = self.cache_dir / filename
+            file_path = self.guide_dir / filename
             with gzip.open(file_path, "wb") as f:
                 f.write(data)
             return True
@@ -240,7 +268,7 @@ class CacheManager:
     def load_guide_block(self, filename: str) -> Optional[bytes]:
         """Load compressed guide block data"""
         try:
-            file_path = self.cache_dir / filename
+            file_path = self.guide_dir / filename
             if file_path.exists():
                 with gzip.open(file_path, "rb") as f:
                     return f.read()
@@ -251,7 +279,7 @@ class CacheManager:
     def save_series_details(self, series_id: str, data: bytes) -> bool:
         """Save series details JSON data"""
         try:
-            file_path = self.series_dir / f"{series_id}.json"
+            file_path = self._details_dir(series_id) / f"{series_id}.json"
             with open(file_path, "wb") as f:
                 f.write(data)
             return True
@@ -261,7 +289,7 @@ class CacheManager:
 
     def load_series_details(self, series_id: str) -> Optional[Dict]:
         """Load series details JSON data"""
-        file_path = self.series_dir / f"{series_id}.json"
+        file_path = self._details_dir(series_id) / f"{series_id}.json"
         try:
             if file_path.exists() and file_path.stat().st_size > 0:
                 with open(file_path, "rb") as f:
@@ -299,7 +327,7 @@ class CacheManager:
         (absent while --norefresh prevents downloading). Mirrors the decision in
         download_guide_block_safe so the parallel path stays consistent.
         """
-        file_exists = (self.cache_dir / filename).exists()
+        file_exists = (self.guide_dir / filename).exists()
         if refresh_hours == 0:
             return "cached" if file_exists else "missing"
         if not file_exists:
@@ -311,7 +339,7 @@ class CacheManager:
         self, downloader, grid_time: float, filename: str, url: str, refresh_hours: int = 48
     ) -> bool:
         """Safe download of guide block with automatic backup"""
-        file_path = self.cache_dir / filename
+        file_path = self.guide_dir / filename
         file_exists = file_path.exists()
 
         # Handling for --norefresh (refresh_hours == 0)
