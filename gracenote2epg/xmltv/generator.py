@@ -31,12 +31,18 @@ class XmltvGenerator(
 ):
     """Generates XMLTV files from parsed guide data - DTD Compliant"""
 
-    ASSETS_BASE_URL = "https://www.tvtv.ca/gn/pi/assets"
+    # Default image host (overridable per-instance from the config's
+    # <imagesources> block). tvtv.ca is rate-limited, so the default is a mirror.
+    ASSETS_BASE_URL = "https://tmsimg.fancybits.co/assets"
 
-    def __init__(self, cache_manager: CacheManager):
+    def __init__(self, cache_manager: CacheManager, image_base_url: Optional[str] = None):
         self.cache_manager = cache_manager
         self.station_count = 0
         self.episode_count = 0
+
+        # Image host: configured source wins, else the class default
+        if image_base_url:
+            self.ASSETS_BASE_URL = image_base_url.rstrip("/")
 
         # Language detection is handled by LanguageDetector module
         self.language_detector: Optional[LanguageDetector] = None

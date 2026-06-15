@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="5">
+<settings version="6">
   <!-- Basic guide settings -->
   <setting id="days">7</setting>                               <!-- Guide duration (1-14 days) -->
   <setting id="zipcode">92101</setting>                        <!-- US ZIP or Canadian postal code -->
@@ -38,4 +38,14 @@
   <setting id="logrotate">true</setting>                       <!-- Log rotation: true(daily)|false|daily|weekly|monthly -->
   <setting id="relogs">30</setting>                            <!-- Log retention: days(number) or weekly|monthly|quarterly -->
   <setting id="rexmltv">7</setting>                            <!-- XMLTV backup retention: days(number) or weekly|monthly|quarterly -->
+
+  <!-- Image source host: the first 'enabled' source is used for program/cast   -->
+  <!-- images. Mirrors serve the same images; switch by toggling status         -->
+  <!-- (enabled|disabled). www.tvtv.ca is rate-limited.                         -->
+  <imagesources>
+    <source status="enabled">https://tmsimg.fancybits.co/assets</source>
+    <source status="disabled">https://www.tvtv.ca/gn/pi/assets</source>
+    <source status="disabled">https://zap2it.tmsimg.com/assets</source>
+    <source status="disabled">https://dshm.tmsimg.com/assets</source>
+  </imagesources>
 </settings>

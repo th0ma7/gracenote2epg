@@ -96,21 +96,22 @@ class ConfigMigrator:
             logging.error("Failed to create backup: %s", str(e))
             raise
 
-    def perform_migration(self, 
+    def perform_migration(self,
                          config_file: Path,
                          valid_settings: Dict[str, Any],
                          removed_settings: List[str],
-                         ordering_needed: bool = False) -> bool:
+                         ordering_needed: bool = False,
+                         version_upgrade: bool = False) -> bool:
         """
         Perform configuration migration with backup
-        
+
         Returns:
             bool: True if migration was successful
         """
         try:
             # Create backup only if we're making changes
             backup_file = None
-            if removed_settings or ordering_needed:
+            if removed_settings or ordering_needed or version_upgrade:
                 backup_file = self.create_backup(config_file)
 
             # Write cleaned and ordered configuration
@@ -130,7 +131,8 @@ class ConfigMigrator:
             if removed_settings:
                 logging.info("  Removed settings: %s", ", ".join(removed_settings))
 
-            logging.info("  Updated to version 5 with unified retention policies")
+            from .settings import SettingsManager
+            logging.info("  Updated to configuration version %s", SettingsManager.CONFIG_VERSION)
 
             # User notification about cleanup/migration - simplified
             if removed_settings:
@@ -213,8 +215,9 @@ class ConfigMigrator:
         """Notify user about configuration upgrade with visible warning"""
         backup_file = self._backup_file_created
 
+        from .settings import SettingsManager
         logging.warning("=" * 60)
-        logging.warning("CONFIGURATION UPGRADED TO VERSION 5")
+        logging.warning("CONFIGURATION UPGRADED TO VERSION %s", SettingsManager.CONFIG_VERSION)
         if backup_file:
             logging.warning("Backup created: %s", backup_file)
         logging.warning("Updated settings: (configuration file)")
@@ -242,8 +245,11 @@ class ConfigMigrator:
                 logging.error("Migration validation failed: root element is not 'settings'")
                 return False
                 
-            if root.attrib.get("version") != "5":
-                logging.warning("Migration validation: version is not '5'")
+            from .settings import SettingsManager
+            if root.attrib.get("version") != SettingsManager.CONFIG_VERSION:
+                logging.warning(
+                    "Migration validation: version is not '%s'", SettingsManager.CONFIG_VERSION
+                )
                 
             # Count settings
             settings_count = len(root.findall("setting"))

@@ -80,11 +80,13 @@ consumers that only read `<icon>`. Application-level support for `<image>`
    generic series description for episodic `<desc>`.
 4. Optional: credit `priority` ordering, `displayRating`.
 
-## Future: configurable image source (separate PR)
+## Configurable image source
 
-`tvtv.ca` (the current host) rate-limits image serving. The image **codes**
-(`pNNNNN_x_hN_xx`) are TMS asset IDs served identically by several mirror
-hosts, so only the base URL needs to change:
+`tvtv.ca` rate-limits image serving. The image **codes** (`pNNNNN_x_hN_xx`) are
+TMS asset IDs served identically by several mirror hosts, so only the base URL
+changes. This is now configurable via an `<imagesources>` block in the config
+(see [configuration](configuration.md)); the first `enabled` source is used and
+the default is the `fancybits` mirror. Known hosts:
 
 | Base URL | Notes |
 |---|---|

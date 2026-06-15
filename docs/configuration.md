@@ -23,7 +23,7 @@ gracenote2epg auto-detects your system and uses appropriate directories:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="5">
+<settings version="6">
   <!-- Basic guide settings -->
   <setting id="zipcode">92101</setting>                        <!-- US ZIP or Canadian postal code -->
   <setting id="lineupid">auto</setting>                        <!-- Lineup configuration -->
@@ -57,8 +57,39 @@ gracenote2epg auto-detects your system and uses appropriate directories:
   <setting id="logrotate">true</setting>                       <!-- Log rotation: true(daily)|false|daily|weekly|monthly -->
   <setting id="relogs">30</setting>                            <!-- Log retention: days(number) or weekly|monthly|quarterly -->
   <setting id="rexmltv">7</setting>                            <!-- XMLTV backup retention: days(number) or weekly|monthly|quarterly -->
+
+  <!-- Image source host (first 'enabled' is used) -->
+  <imagesources>
+    <source status="enabled">https://tmsimg.fancybits.co/assets</source>
+    <source status="disabled">https://www.tvtv.ca/gn/pi/assets</source>
+    <source status="disabled">https://zap2it.tmsimg.com/assets</source>
+    <source status="disabled">https://dshm.tmsimg.com/assets</source>
+  </imagesources>
 </settings>
 ```
+
+> **Schema version 6**: the `<imagesources>` block was added in version 6.
+> Existing version-5 configs are upgraded automatically on the next run (a
+> backup is written and the block is injected with defaults).
+
+## Image Source
+
+Program and cast/crew images are referenced by their Gracenote/TMS asset code,
+which several mirror hosts serve identically. The `<imagesources>` block selects
+which host to write into the guide; the **first `enabled` source wins**. Switch
+host by toggling `status` (`enabled` / `disabled`) — no need to retype URLs.
+
+```xml
+<imagesources>
+  <source status="enabled">https://tmsimg.fancybits.co/assets</source>
+  <source status="disabled">https://www.tvtv.ca/gn/pi/assets</source>
+</imagesources>
+```
+
+- Default host is `tmsimg.fancybits.co` (the `www.tvtv.ca` host is rate-limited).
+- You may add your own full base URL as a `<source>`.
+- This only affects the image URLs written to the XMLTV; it has no effect on
+  which channels/programmes are downloaded.
 
 ## Required Settings
 
@@ -287,7 +318,7 @@ Same format as `relogs` - controls how long to keep XMLTV backup files.
 ### Standard Home Setup
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="5">
+<settings version="6">
   <!-- Basic guide settings -->
   <setting id="zipcode">92101</setting>
   <setting id="lineupid">auto</setting>
@@ -310,7 +341,7 @@ Same format as `relogs` - controls how long to keep XMLTV backup files.
 ### Resource-Limited System
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="5">
+<settings version="6">
   <!-- Minimal resource usage -->
   <setting id="zipcode">J3B1M4</setting>
   <setting id="lineupid">auto</setting>
@@ -333,7 +364,7 @@ Same format as `relogs` - controls how long to keep XMLTV backup files.
 ### Development/Testing
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="5">
+<settings version="6">
   <!-- Testing configuration -->
   <setting id="zipcode">92101</setting>
   <setting id="lineupid">auto</setting>

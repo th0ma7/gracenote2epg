@@ -288,7 +288,7 @@ tv_grab_gracenote2epg --days 1 --zip 90210 --console
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="5">
+<settings version="6">
   <!-- Basic guide settings -->
   <setting id="days">2</setting>
   <setting id="zipcode">92101</setting>                        <!-- Your postal/ZIP code -->

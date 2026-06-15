@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<settings version="5">
+  <!-- Legacy version-5 config (no <imagesources> block) used to test the
+       automatic upgrade to version 6. -->
+  <setting id="zipcode">J3B1M4</setting>
+  <setting id="lineupid">auto</setting>
+  <setting id="days">1</setting>
+  <setting id="xdetails">true</setting>
+  <setting id="xdesc">true</setting>
+  <setting id="langdetect">false</setting>
+  <setting id="tvhoff">false</setting>
+  <setting id="redays">1</setting>
+  <setting id="refresh">48</setting>
+</settings>

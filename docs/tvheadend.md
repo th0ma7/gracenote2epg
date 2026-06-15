@@ -36,7 +36,7 @@ Configure gracenote2epg for optimal TVheadend integration. Below is the essentia
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="5">
+<settings version="6">
   <!-- Basic guide settings -->
   <setting id="zipcode">92101</setting>
   <setting id="lineupid">auto</setting>
