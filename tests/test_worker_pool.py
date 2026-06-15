@@ -131,5 +131,52 @@ class GovernorBackstopTests(unittest.TestCase):
         self.assertLess(gov.rate, 8.0)
 
 
+class RetryTests(unittest.TestCase):
+    def test_failed_task_is_retried_and_can_succeed(self):
+        attempts = {}
+        lock = threading.Lock()
+
+        def execute(session, task):
+            with lock:
+                attempts[task.task_id] = attempts.get(task.task_id, 0) + 1
+                n = attempts[task.task_id]
+            # task "2" fails on its first attempt, succeeds on the retry
+            ok = not (task.task_id == "2" and n == 1)
+            return DownloadResult(task.task_id, success=ok, rate_limited=not ok)
+
+        pool = PacedWorkerPool(execute, workers=1, governor=instant_governor())
+        results = pool.run(tasks(3), max_attempts=2)
+        self.assertEqual(len(results), 3)
+        self.assertTrue(next(r for r in results if r.task_id == "2").success)
+        self.assertEqual(attempts["2"], 2)  # retried once
+
+    def test_exhausted_retries_finalise_as_failure(self):
+        def execute(session, task):
+            return DownloadResult(task.task_id, success=False)
+
+        pool = PacedWorkerPool(execute, workers=2, governor=instant_governor())
+        results = pool.run(tasks(5), max_attempts=2)
+        self.assertEqual(len(results), 5)  # no deadlock; all finalised
+        self.assertTrue(all(not r.success for r in results))
+        self.assertEqual(pool.requests, 10)  # 5 tasks x 2 attempts
+
+    def test_default_is_no_retry(self):
+        def execute(session, task):
+            return DownloadResult(task.task_id, success=False)
+
+        pool = PacedWorkerPool(execute, workers=2, governor=instant_governor())
+        pool.run(tasks(4))
+        self.assertEqual(pool.requests, 4)  # one attempt each
+
+    def test_stats_count_requests_and_rate_limited(self):
+        def execute(session, task):
+            return DownloadResult(task.task_id, success=False, rate_limited=True)
+
+        pool = PacedWorkerPool(execute, workers=2, governor=instant_governor())
+        pool.run(tasks(4), max_attempts=1)
+        self.assertEqual(pool.requests, 4)
+        self.assertEqual(pool.rate_limited, 4)
+
+
 if __name__ == "__main__":
     unittest.main()
