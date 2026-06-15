@@ -32,6 +32,13 @@ with no change to the generated guide.
   with no rotating User-Agents (a single one is sufficient). Config schema → 7.
 
 ### Fixed
+- **Series details on every airing**: extended details (series box-art `<icon>`,
+  credits, genres, per-episode synopsis and original air date) were only applied
+  to the *first* airing of each series in the guide. Every other airing fell
+  back to the per-episode thumbnail as `<icon>` and lost its credits/genres/
+  poster — so the same series looked rich on one showing and bare on the next.
+  Details are now applied to all airings (the per-series cache file is still read
+  from disk only once).
 - **Timezone offset**: XMLTV times now always carry a standard signed `±HHMM`
   offset. UTC hosts previously emitted `0000` (no sign), and offsets with
   non-zero minutes (e.g. Newfoundland `-0330`, India `+0530`) were truncated.
