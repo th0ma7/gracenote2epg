@@ -46,6 +46,8 @@ class ConfigValidator:
             "logrotate": str,
             "relogs": str,
             "rexmltv": str,
+            # Download performance
+            "dlworkers": str,
         }
 
     def validate_postal_code_format(self, postal_code: str) -> Tuple[bool, str, str]:

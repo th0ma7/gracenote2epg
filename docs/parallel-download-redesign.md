@@ -81,7 +81,11 @@ safety backstop for cold/full runs.
 - [x] `downloader/pacing.py` — `RateController` (AIMD) shared governor, with tests.
 - [x] Live validation: keep-alive ~2.5× per-request; single UA fine; 4 keep-alive
       workers ~3.4× and no block.
-- [ ] `PacedWorkerPool`: fixed pool of keep-alive workers sharing the governor.
-- [ ] Wire into `SeriesDownloader` / `GuideDownloader` behind a flag; compare to
-      the current sequential path on cold + warm runs.
-- [ ] Decide config surface (worker count + rate cap profile).
+- [x] `PacedWorkerPool`: fixed pool of keep-alive workers sharing the governor.
+- [x] Real Gracenote HTTP adapter (`http.py`); single data host confirmed (no
+      mirror), so no multi-source config.
+- [x] Wired into `SeriesDownloader` behind the `dlworkers` config (1=sequential,
+      2-8=fixed, `auto`=4 + self-regulating governor; default `auto`). Schema
+      bumped to **version 7**. Live end-to-end: 24 series 15.4s → 4.5s (~3.4×).
+- [ ] Optional: extend to guide blocks; stress-test a large (500+) cold run with
+      parallelism to confirm the keep-alive pattern stays under the WAF.

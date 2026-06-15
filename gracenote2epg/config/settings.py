@@ -14,13 +14,14 @@ from typing import Dict, Any, List, Optional
 class SettingsManager:
     """Handles XML settings parsing and management"""
 
-    # Current config schema version. Bumped to 6 when the <imagesources> block
-    # was introduced; older files are upgraded automatically on load.
-    CONFIG_VERSION = "6"
+    # Current config schema version. Bumped to 6 for the <imagesources> block,
+    # then 7 for the dlworkers (parallel download) setting; older files are
+    # upgraded automatically on load.
+    CONFIG_VERSION = "7"
 
     # Default configuration template
     DEFAULT_CONFIG = """<?xml version="1.0" encoding="utf-8"?>
-<settings version="6">
+<settings version="7">
   <!-- Basic guide settings -->
   <setting id="zipcode">92101</setting>
   <setting id="lineupid">auto</setting>
@@ -54,6 +55,9 @@ class SettingsManager:
   <setting id="logrotate">true</setting>
   <setting id="relogs">30</setting>
   <setting id="rexmltv">7</setting>
+
+  <!-- Download performance -->
+  <setting id="dlworkers">auto</setting>
 
   <!-- Image source host (first 'enabled' is used; mirrors serve the same images) -->
   <imagesources>
@@ -99,6 +103,7 @@ class SettingsManager:
         "logrotate",
         "relogs",
         "rexmltv",
+        "dlworkers",
     ]
 
     def __init__(self):
@@ -266,6 +271,7 @@ class SettingsManager:
                     "Cache and retention policies",
                     ["redays", "refresh", "logrotate", "relogs", "rexmltv"],
                 ),
+                ("Download performance", ["dlworkers"]),
             ]
 
             written_settings = set()
@@ -342,6 +348,7 @@ class SettingsManager:
             "logrotate": "true",
             "relogs": "30",
             "rexmltv": "7",
+            "dlworkers": "auto",
         }
 
         # Decide what is missing from the ORIGINAL file (not the live, possibly

@@ -353,7 +353,9 @@ def main():
 
             # Download extended details if needed
             if config_manager.needs_extended_download():
-                extended_success = data_parser.download_and_parse_series_details()
+                extended_success = data_parser.download_and_parse_series_details(
+                    workers=config_manager.get_download_workers()
+                )
                 if not extended_success:
                     logging.warning(
                         "Extended details download had issues, using basic descriptions"

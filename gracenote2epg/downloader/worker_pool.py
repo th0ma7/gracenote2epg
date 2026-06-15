@@ -40,9 +40,17 @@ class PacedWorkerPool:
         self._execute = execute
         self._workers = max(1, workers)
         self._session_factory = session_factory or (lambda: None)
-        # Default governor stays high so it does not throttle normal operation;
-        # it only clamps down (AIMD) when the server pushes back.
-        self._governor = governor or RateController(initial_rate=20.0, max_rate=30.0, min_rate=0.5)
+        # Self-regulating governor: starts moderate (safe even on a cold run of
+        # hundreds of new series), ramps up via AIMD while the server is happy,
+        # and backs off on a 429/WAF signal.
+        self._governor = governor or RateController(
+            initial_rate=5.0,
+            max_rate=20.0,
+            min_rate=0.5,
+            increase_step=0.5,
+            success_threshold=10,
+            decrease_factor=0.5,
+        )
         self._on_progress = on_progress
         self._gov_lock = threading.Lock()
 
