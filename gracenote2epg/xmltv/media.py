@@ -71,6 +71,30 @@ class MediaMixin:
                     )
 
 
+    def _write_program_images(self, fh, episode_data: Dict, use_extended_details: bool = True):
+        """Write typed <image> elements (poster/backdrop/still).
+
+        Uses the DTD's dedicated <image> element (with a real type attribute),
+        unlike <icon> which cannot be typed. Must be emitted last in
+        <programme> per the DTD content model. The legacy <icon> is kept for
+        consumers that only read it. poster/backdrop come from the extended
+        series details; the episode still comes from the guide thumbnail.
+        """
+        def image(img_type, orient, code):
+            fh.write(
+                f'\t\t<image type="{img_type}" orient="{orient}">'
+                f'{self.ASSETS_BASE_URL}/{code}.jpg</image>\n'
+            )
+
+        if use_extended_details:
+            if episode_data.get("epimage"):
+                image("poster", "P", episode_data["epimage"])
+            if episode_data.get("epfan"):
+                image("backdrop", "L", episode_data["epfan"])
+
+        if episode_data.get("epthumb"):
+            image("still", "L", episode_data["epthumb"])
+
     def _is_new_or_live(self, episode_data: Dict) -> bool:
         """Check if episode is new or live"""
         flags = episode_data.get("epflag", [])
