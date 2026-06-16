@@ -5,7 +5,6 @@ Handles migration from older configuration versions, deprecated settings removal
 backup creation, and configuration file cleanup operations.
 """
 
-import hashlib
 import logging
 import re
 import shutil
@@ -135,15 +134,15 @@ class ConfigMigrator:
             if retention <= 0:
                 return  # 0/negative = unlimited (no cleanup)
             backups = sorted(config_file.parent.glob(f"{config_file.name}.backup.*"), reverse=True)
-            seen_hashes = set()
+            seen = set()  # distinct contents kept so far (files are tiny)
             removed = 0
             for backup in backups:  # newest first
                 try:
-                    digest = hashlib.md5(backup.read_bytes()).hexdigest()
+                    content = backup.read_bytes()
                 except OSError:
                     continue
-                if digest not in seen_hashes and len(seen_hashes) < retention:
-                    seen_hashes.add(digest)  # keep newest copy of this version
+                if content not in seen and len(seen) < retention:
+                    seen.add(content)  # keep newest copy of this version
                 else:
                     try:
                         backup.unlink()  # older duplicate, or beyond retention
@@ -154,7 +153,7 @@ class ConfigMigrator:
                 logging.info(
                     "Config backup cleanup: removed %d old/duplicate backup(s), kept %d distinct",
                     removed,
-                    len(seen_hashes),
+                    len(seen),
                 )
         except Exception as e:
             logging.debug("Config backup cleanup skipped: %s", e)
