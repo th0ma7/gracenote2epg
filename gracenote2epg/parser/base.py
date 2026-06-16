@@ -70,7 +70,7 @@ class DataParser:
 
         return download_success
 
-    def download_and_parse_series_details(self, workers: int = 1) -> bool:
+    def download_and_parse_series_details(self, workers: int = 1, threshold: int = 0) -> bool:
         """Download and parse extended series details with separated logic"""
         # Extract active series list from parsed schedule
         series_list = self.get_active_series_list()
@@ -80,7 +80,9 @@ class DataParser:
             return True
 
         # PHASE 1: Download series details (delegated to downloader)
-        download_success = self.series_downloader.download_series_details(series_list, workers)
+        download_success = self.series_downloader.download_series_details(
+            series_list, workers, threshold
+        )
 
         if not download_success:
             logging.warning("Extended details download had issues, using basic descriptions")

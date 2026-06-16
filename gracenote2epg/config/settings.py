@@ -15,13 +15,14 @@ class SettingsManager:
     """Handles XML settings parsing and management"""
 
     # Current config schema version. Bumped to 6 for the <imagesources> block,
-    # then 7 for the dlworkers (parallel download) setting; older files are
-    # upgraded automatically on load.
-    CONFIG_VERSION = "7"
+    # 7 for the dlworkers (parallel download) setting, then 8 for the dlthreshold
+    # (parallel→sequential switch) setting; older files are upgraded
+    # automatically on load.
+    CONFIG_VERSION = "8"
 
     # Default configuration template
     DEFAULT_CONFIG = """<?xml version="1.0" encoding="utf-8"?>
-<settings version="7">
+<settings version="8">
   <!-- Basic guide settings -->
   <setting id="zipcode">92101</setting>
   <setting id="lineupid">auto</setting>
@@ -58,6 +59,7 @@ class SettingsManager:
 
   <!-- Download performance -->
   <setting id="dlworkers">auto</setting>
+  <setting id="dlthreshold">auto</setting>
 
   <!-- Image source host (first 'enabled' is used; mirrors serve the same images) -->
   <imagesources>
@@ -104,6 +106,7 @@ class SettingsManager:
         "relogs",
         "rexmltv",
         "dlworkers",
+        "dlthreshold",
     ]
 
     def __init__(self):
@@ -271,7 +274,7 @@ class SettingsManager:
                     "Cache and retention policies",
                     ["redays", "refresh", "logrotate", "relogs", "rexmltv"],
                 ),
-                ("Download performance", ["dlworkers"]),
+                ("Download performance", ["dlworkers", "dlthreshold"]),
             ]
 
             written_settings = set()
@@ -349,6 +352,7 @@ class SettingsManager:
             "relogs": "30",
             "rexmltv": "7",
             "dlworkers": "auto",
+            "dlthreshold": "auto",
         }
 
         # Decide what is missing from the ORIGINAL file (not the live, possibly
