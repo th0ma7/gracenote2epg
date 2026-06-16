@@ -363,11 +363,17 @@ class DownloaderStatsMixin:
     downloaded_count: int = 0
     cached_count: int = 0
     failed_count: int = 0
+    # Network request counters from the parallel pool (0 in sequential mode,
+    # where the shared OptimizedDownloader engine reports its own totals).
+    http_requests: int = 0
+    rate_limited: int = 0
 
     def _reset_counters(self):
         self.downloaded_count = 0
         self.cached_count = 0
         self.failed_count = 0
+        self.http_requests = 0
+        self.rate_limited = 0
 
     def _calculate_success_rate(self) -> float:
         """Overall success rate (downloads + cache hits) for the stats display."""
@@ -388,4 +394,6 @@ class DownloaderStatsMixin:
             "cache_efficiency": (
                 (self.cached_count / cached_or_downloaded * 100) if cached_or_downloaded > 0 else 0
             ),
+            "http_requests": self.http_requests,
+            "rate_limited": self.rate_limited,
         }

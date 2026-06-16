@@ -406,11 +406,22 @@ def main():
                 dl_stats["series"]["cached"],
                 dl_stats["series"]["failed"],
             )
+            # Combine the sequential HTTP engine and the parallel worker pools so
+            # the totals are accurate in either download mode.
+            total_requests = (
+                dl_stats["http_engine"]["total_requests"]
+                + dl_stats["guide"].get("http_requests", 0)
+                + dl_stats["series"].get("http_requests", 0)
+            )
+            blocked = (
+                dl_stats["http_engine"]["waf_blocks"]
+                + dl_stats["guide"].get("rate_limited", 0)
+                + dl_stats["series"].get("rate_limited", 0)
+            )
             logging.info(
-                "  HTTP requests: %d total, %d WAF blocks, %.2fs final delay",
-                dl_stats["http_engine"]["total_requests"],
-                dl_stats["http_engine"]["waf_blocks"],
-                dl_stats["http_engine"]["current_delay"],
+                "  Network requests: %d total, %d rate-limited/blocked",
+                total_requests,
+                blocked,
             )
 
             # Log final cache and retention policy status for transparency

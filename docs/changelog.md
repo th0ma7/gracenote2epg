@@ -32,7 +32,9 @@ with no change to the generated guide.
   shared rate limiter. Controlled by the new `dlworkers` setting (`1`
   =sequential, `2`-`8`=fixed, `auto`=default). ~3.4× faster on the new-series
   delta of a refresh, with no rotating User-Agents (a single one is
-  sufficient). Config schema → 7.
+  sufficient). Config schema → 7. Failed downloads are re-queued (guide retried
+  harder than non-critical series details), and the final stats report the
+  pool's request counts accurately.
 
 ### Fixed
 - **Series details on every airing**: extended details (series box-art `<icon>`,

@@ -53,24 +53,37 @@ class PacedWorkerPool:
         )
         self._on_progress = on_progress
         self._gov_lock = threading.Lock()
+        self._stats_lock = threading.Lock()
+        # Aggregate request stats (one entry per attempt), for reporting.
+        self.requests = 0
+        self.rate_limited = 0
 
     @property
     def governor(self) -> RateController:
         return self._governor
 
-    def run(self, tasks: List[DownloadTask]) -> List[DownloadResult]:
-        """Execute *tasks*; returns their results (order not guaranteed)."""
+    def run(self, tasks: List[DownloadTask], max_attempts: int = 1) -> List[DownloadResult]:
+        """Execute *tasks*; returns their final results (order not guaranteed).
+
+        Failed tasks (including rate-limited ones) are re-queued at the **end**
+        and retried up to ``max_attempts`` total, so a transient/blocked request
+        is given another chance after the rest of the batch (and after the
+        governor has backed off).
+        """
         if not tasks:
             return []
+        self.requests = 0
+        self.rate_limited = 0
 
-        work: "queue.Queue[DownloadTask]" = queue.Queue()
+        # Queue carries (task, attempt_number).
+        work: "queue.Queue" = queue.Queue()
         for task in tasks:
-            work.put(task)
+            work.put((task, 1))
 
         sink = _ResultSink(len(tasks), self._on_progress)
         n = min(self._workers, len(tasks))
         threads = [
-            threading.Thread(target=self._worker_loop, args=(work, sink), daemon=True)
+            threading.Thread(target=self._worker_loop, args=(work, sink, max_attempts), daemon=True)
             for _ in range(n)
         ]
         for t in threads:
@@ -79,17 +92,23 @@ class PacedWorkerPool:
             t.join()
         return sink.results
 
-    def _worker_loop(self, work: "queue.Queue[DownloadTask]", sink: "_ResultSink") -> None:
-        """One worker: own a persistent session, drain the queue."""
+    def _worker_loop(self, work: "queue.Queue", sink: "_ResultSink", max_attempts: int) -> None:
+        """One worker: own a persistent session, drain the queue (with requeue)."""
         session = self._session_factory()
         try:
-            while True:
+            # Terminate on finalised count, not queue-empty, because failures get
+            # re-queued (a worker could otherwise exit while a requeue is pending).
+            while not sink.complete:
                 try:
-                    task = work.get_nowait()
+                    task, attempt = work.get(timeout=0.1)
                 except queue.Empty:
-                    return
-                sink.add(self._process(session, task))
-                work.task_done()
+                    continue
+                result = self._process(session, task)
+                if not result.success and attempt < max_attempts:
+                    logging.debug("Requeue %s (attempt %d/%d)", task.task_id, attempt, max_attempts)
+                    work.put((task, attempt + 1))
+                else:
+                    sink.add(result)
         finally:
             close = getattr(session, "close", None)
             if callable(close):
@@ -109,6 +128,10 @@ class PacedWorkerPool:
                 self._governor.on_rate_limited()
             elif result.success:
                 self._governor.on_success()
+        with self._stats_lock:
+            self.requests += 1
+            if result.rate_limited:
+                self.rate_limited += 1
         return result
 
 
@@ -127,3 +150,8 @@ class _ResultSink:
             done = len(self.results)
         if self._on_progress:
             self._on_progress(done, self._total)
+
+    @property
+    def complete(self) -> bool:
+        with self._lock:
+            return len(self.results) >= self._total

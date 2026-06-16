@@ -111,7 +111,9 @@ class SeriesDownloader(DownloaderStatsMixin):
         pool = PacedWorkerPool(
             execute, workers=workers, session_factory=make_session, on_progress=on_progress
         )
-        for result in pool.run(tasks):
+        # Series details are non-critical: one best-effort retry (re-queued at
+        # the end), and anything still missing is simply re-fetched next run.
+        for result in pool.run(tasks, max_attempts=2):
             saved = False
             if result.success and result.content:
                 try:
@@ -124,6 +126,9 @@ class SeriesDownloader(DownloaderStatsMixin):
             else:
                 self.failed_count += 1
                 self.failed_series.append(result.task_id)
+
+        self.http_requests = pool.requests
+        self.rate_limited = pool.rate_limited
 
     def _identify_series_to_download(self, unique_series: Set[str]) -> List[str]:
         """Identify which series need to be downloaded vs cached"""

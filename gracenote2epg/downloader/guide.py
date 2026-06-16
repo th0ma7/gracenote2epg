@@ -129,7 +129,8 @@ class GuideDownloader(DownloaderStatsMixin):
 
         existed_map = dict(to_fetch)
         pool = PacedWorkerPool(execute, workers=workers, session_factory=make_session)
-        for result in pool.run(tasks):
+        # Guide blocks are important: retry failed ones (re-queued at the end).
+        for result in pool.run(tasks, max_attempts=3):
             saved = False
             if result.success and result.content:
                 saved = self.cache_manager.validate_and_save_guide_block(
@@ -142,6 +143,9 @@ class GuideDownloader(DownloaderStatsMixin):
                 self.cached_count += 1
             else:
                 self.failed_count += 1
+
+        self.http_requests = pool.requests
+        self.rate_limited = pool.rate_limited
 
     def _download_single_block(
         self, grid_time: float, lineup_config: Dict, refresh_hours: int
