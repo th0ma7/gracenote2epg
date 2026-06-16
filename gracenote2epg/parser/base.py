@@ -7,7 +7,7 @@ The DataParser now acts as a pure orchestrator that coordinates between:
 """
 
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from ..downloader import OptimizedDownloader, GuideDownloader, SeriesDownloader
 from .guide import GuideParser
@@ -70,7 +70,9 @@ class DataParser:
 
         return download_success
 
-    def download_and_parse_series_details(self, workers: int = 1, threshold: int = 0) -> bool:
+    def download_and_parse_series_details(
+        self, workers: int = 1, threshold: Optional[int] = None
+    ) -> bool:
         """Download and parse extended series details with separated logic"""
         # Extract active series list from parsed schedule
         series_list = self.get_active_series_list()

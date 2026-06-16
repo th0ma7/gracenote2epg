@@ -42,7 +42,7 @@
 
   <!-- Download performance -->
   <setting id="dlworkers">auto</setting>                       <!-- Parallel download workers: 1=sequential, 2-8=fixed, auto=recommended -->
-  <setting id="dlthreshold">auto</setting>                     <!-- Switch to sequential above N pending downloads (avoids 429 wall): auto(~500) or a number -->
+  <setting id="dlthreshold">auto</setting>                     <!-- auto=adaptive concurrency (parallel, rides out 429s); a number=go sequential above N pending downloads -->
 
   <!-- Image source host: the first 'enabled' source is used for program/cast   -->
   <!-- images. Mirrors serve the same images; switch by toggling status         -->

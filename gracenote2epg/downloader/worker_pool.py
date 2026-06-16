@@ -3,16 +3,22 @@ gracenote2epg.downloader.worker_pool - bounded keep-alive worker pool
 
 A small, fixed pool of long-lived workers, each owning ONE persistent connection
 (its own session) and pulling tasks from a shared queue, so each worker
-downloads its share serially over a reused connection. A single shared
-``RateController`` (AIMD) caps the *combined* request rate and backs off globally
-on a rate-limit / WAF signal — a safety backstop that stays out of the way on
-normal small refreshes. See docs/parallel-download-redesign.md.
+downloads its share serially over a reused connection.
 
-If the server keeps returning HTTP 429 (its cumulative-volume wall), the pool
-gives up early instead of crawling forever: after a run of consecutive
-rate-limited responses it aborts the remaining queue (accounting those items as
-failed) so the process always terminates without a manual kill. The leftover
-work is simply picked up on the next run.
+Two adaptive controls ride on top, both reacting to the server's HTTP 429 / WAF
+signal:
+
+* a shared **rate** governor (AIMD on requests/second, with per-request jitter)
+  so the combined stream stays under the server's sustainable rate and looks
+  organic rather than metronomic — the "adaptive delay" applied on every
+  request, with one worker or several;
+* an adaptive **concurrency** limiter (AIMD on how many requests are in flight)
+  that collapses toward a single worker on a 429 and ramps back up after a clean
+  streak — a "wave" that finds the server's concurrency tolerance.
+
+If the server keeps returning 429, the pool gives up early (accounting the rest
+as failed) so the process always terminates without a manual kill; the leftover
+work is picked up on the next run.
 
 The session factory and the per-task execute function are injected, so the pool
 is fully testable without any network.
@@ -23,6 +29,7 @@ import queue
 import threading
 from typing import Callable, List, Optional
 
+from .concurrency import ConcurrencyLimiter
 from .pacing import RateController
 from .tasks import DownloadResult, DownloadTask
 
@@ -44,14 +51,16 @@ class PacedWorkerPool:
         governor: Optional[RateController] = None,
         on_progress: Optional[ProgressFn] = None,
         on_result: Optional[ResultFn] = None,
-        abort_after: int = 12,
+        abort_after: int = 40,
+        adaptive_concurrency: bool = True,
     ):
         self._execute = execute
         self._workers = max(1, workers)
         self._session_factory = session_factory or (lambda: None)
-        # Self-regulating governor: starts moderate (safe even on a cold run of
-        # hundreds of new series), ramps up via AIMD while the server is happy,
-        # and backs off on a 429/WAF signal.
+        # Self-regulating rate governor: starts moderate (safe even on a cold run
+        # of hundreds of new series), ramps up via AIMD while the server is
+        # happy, backs off on a 429/WAF signal, and jitters each gap so the
+        # stream looks organic.
         self._governor = governor or RateController(
             initial_rate=5.0,
             max_rate=20.0,
@@ -59,14 +68,17 @@ class PacedWorkerPool:
             increase_step=0.5,
             success_threshold=10,
             decrease_factor=0.5,
+            jitter=0.35,
         )
+        # Adaptive concurrency: collapse the in-flight count on 429, ramp back on
+        # success. Disabled -> all workers always active (fixed concurrency).
+        self._limiter = ConcurrencyLimiter(self._workers) if adaptive_concurrency else None
         self._on_progress = on_progress
         self._on_result = on_result
         # Stop hitting the server after this many consecutive rate-limited
-        # responses (0 = never abort). Guards against an endless crawl when the
-        # WAF wall stays shut.
+        # responses (0 = never abort). A normal "wave" intersperses successes
+        # that reset the counter, so only a persistently shut wall trips it.
         self._abort_after = abort_after
-        self._gov_lock = threading.Lock()
         self._stats_lock = threading.Lock()
         self._abort = threading.Event()
         # Aggregate request stats (one entry per attempt), for reporting.
@@ -82,14 +94,17 @@ class PacedWorkerPool:
     def aborted(self) -> bool:
         return self._abort.is_set()
 
+    @property
+    def concurrency_limit(self) -> int:
+        return self._limiter.limit if self._limiter else self._workers
+
     def run(self, tasks: List[DownloadTask], max_attempts: int = 1) -> List[DownloadResult]:
         """Execute *tasks*; returns their final results (order not guaranteed).
 
         Failed tasks (including rate-limited ones) are re-queued at the **end**
-        and retried up to ``max_attempts`` total, so a transient/blocked request
-        is given another chance after the rest of the batch (and after the
-        governor has backed off). If the server keeps rate-limiting, the pool
-        aborts early (see module docstring) rather than looping.
+        and retried up to ``max_attempts`` total. If the server keeps
+        rate-limiting, the pool aborts early (see module docstring) rather than
+        looping.
         """
         if not tasks:
             return []
@@ -131,7 +146,7 @@ class PacedWorkerPool:
                     # so the pool finishes promptly instead of crawling.
                     sink.add(DownloadResult(task.task_id, success=False, error="aborted"))
                     continue
-                result = self._process(session, task)
+                result = self._process_gated(session, task)
                 if not result.success and attempt < max_attempts and not self._abort.is_set():
                     logging.debug("Requeue %s (attempt %d/%d)", task.task_id, attempt, max_attempts)
                     work.put((task, attempt + 1))
@@ -142,21 +157,36 @@ class PacedWorkerPool:
             if callable(close):
                 close()
 
+    def _process_gated(self, session, task: DownloadTask) -> DownloadResult:
+        """Acquire an in-flight slot (adaptive concurrency), then process."""
+        if self._limiter is not None:
+            self._limiter.acquire()
+        try:
+            result = self._process(session, task)
+        finally:
+            if self._limiter is not None:
+                self._limiter.release()
+        # Feed the concurrency wave after releasing the slot.
+        if self._limiter is not None:
+            if result.rate_limited:
+                self._limiter.on_rate_limited()
+            elif result.success:
+                self._limiter.on_success()
+        return result
+
     def _process(self, session, task: DownloadTask) -> DownloadResult:
-        """Pace (governed combined rate), run one request, feed the governor."""
-        with self._gov_lock:
-            self._governor.wait()
-        logging.debug("Downloading %s", task.task_id)
+        """Pace (governed jittered rate), run one request, feed the governor."""
+        slept = self._governor.wait()
+        logging.debug("  Adaptive delay: %.2fs (rate %.1f/s)", slept, self._governor.rate)
         try:
             result = self._execute(session, task)
         except Exception as e:  # never let one task kill a worker
             logging.debug("Task %s raised: %s", task.task_id, e)
             result = DownloadResult(task.task_id, success=False, error=str(e))
-        with self._gov_lock:
-            if result.rate_limited:
-                self._governor.on_rate_limited()
-            elif result.success:
-                self._governor.on_success()
+        if result.rate_limited:
+            self._governor.on_rate_limited()
+        elif result.success:
+            self._governor.on_success()
         self._record(result)
         return result
 

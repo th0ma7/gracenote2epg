@@ -14,18 +14,19 @@ def _cm(**settings):
 
 
 class DownloadThresholdTests(unittest.TestCase):
-    def test_auto_resolves_to_the_waf_wall(self):
-        self.assertEqual(_cm(dlthreshold="auto").get_download_threshold(), 500)
+    def test_auto_means_no_cutoff_adaptive(self):
+        # auto -> None: stay parallel, adaptive concurrency handles 429s.
+        self.assertIsNone(_cm(dlthreshold="auto").get_download_threshold())
 
     def test_default_when_missing_is_auto(self):
-        self.assertEqual(_cm().get_download_threshold(), 500)
+        self.assertIsNone(_cm().get_download_threshold())
 
     def test_positive_integer_overrides(self):
         self.assertEqual(_cm(dlthreshold="250").get_download_threshold(), 250)
 
     def test_zero_and_garbage_fall_back_to_auto(self):
-        self.assertEqual(_cm(dlthreshold="0").get_download_threshold(), 500)
-        self.assertEqual(_cm(dlthreshold="nope").get_download_threshold(), 500)
+        self.assertIsNone(_cm(dlthreshold="0").get_download_threshold())
+        self.assertIsNone(_cm(dlthreshold="nope").get_download_threshold())
 
 
 class DownloadWorkersTests(unittest.TestCase):

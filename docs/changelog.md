@@ -36,14 +36,21 @@ with no change to the generated guide.
   non-critical series details), and the final stats report the pool's request
   counts accurately.
 - **Cold-cache rate-limit handling**: the Gracenote API blocks (HTTP 429) after
-  a few hundred requests, which concurrency reaches sooner. A new `dlthreshold`
-  setting (`auto`≈500) downloads large series-detail batches **sequentially**
-  (never rate-limited) while keeping the parallel pool for normal refreshes. As
-  a safety net, the parallel pool now **aborts early** if the server keeps
-  returning 429 (instead of crawling forever), logs blocks/back-offs at WARNING,
-  and **saves details as they arrive** — so an interrupted or aborted run keeps
-  its progress, the rest is fetched next run, and the process always terminates
-  on its own. Config schema → 8.
+  a few hundred requests, which concurrency reaches sooner. The new `dlthreshold`
+  setting controls the response:
+  - `auto` (default) = **adaptive concurrency**: the parallel pool rides the wall
+    like a wave — a 429 halves the in-flight workers (collapsing toward one) and
+    slows the shared rate governor, and a clean streak ramps both back up. Every
+    request also carries an adaptive, jittered delay (one worker or several) so
+    the stream looks organic, not metronomic.
+  - a number (e.g. `500`) = download large batches over a single **sequential**
+    connection (never rate-limited), parallel below the threshold.
+
+  Either way the pool **aborts early** if the server stays shut (instead of
+  crawling forever), logs blocks/back-offs at WARNING, and **saves details as
+  they arrive** — so an interrupted or aborted run keeps its progress, the rest
+  is fetched next run, and the process always terminates on its own. Config
+  schema → 8.
 
 ### Fixed
 - **Config backup retention**: timestamped configuration backups

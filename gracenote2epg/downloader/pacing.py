@@ -9,12 +9,17 @@ not peak throughput.
 ``RateController`` implements TCP-style AIMD on the request rate: additive
 increase while requests succeed, multiplicative decrease on a rate-limit / WAF
 signal. It converges to a sawtooth just below the server's ceiling and stays
-there. See docs/parallel-download-redesign.md.
+there. A per-request *jitter* spreads the spacing so the combined stream looks
+organic rather than metronomic. The controller is thread-safe (the worker pool
+shares one) and reserves each slot under a short lock, then sleeps *outside* it
+so workers genuinely overlap. See docs/parallel-download-redesign.md.
 
-The clock and sleep functions are injectable so the controller is fully
-testable without real time.
+The clock, sleep and rng functions are injectable so the controller is fully
+testable without real time or randomness.
 """
 
+import random
+import threading
 import time
 from typing import Callable, Optional
 
@@ -32,8 +37,10 @@ class RateController:
         decrease_factor: float = 0.5,
         success_threshold: int = 10,
         waf_cooldown: float = 20.0,
+        jitter: float = 0.0,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
+        rng: Callable[[], float] = random.random,
     ):
         if not (0 < min_rate <= max_rate):
             raise ValueError("require 0 < min_rate <= max_rate")
@@ -43,48 +50,62 @@ class RateController:
         self._decrease_factor = decrease_factor
         self._success_threshold = max(1, success_threshold)
         self._waf_cooldown = waf_cooldown
+        # Fraction (0..1) by which each gap is randomly stretched/shrunk.
+        self._jitter = max(0.0, min(1.0, jitter))
         self._clock = clock
         self._sleep = sleep
+        self._rng = rng
 
+        self._lock = threading.Lock()
         self.rate = self._clamp(initial_rate)
         self._successes = 0
-        self._last_request: Optional[float] = None
+        self._next_allowed: Optional[float] = None
 
     def _clamp(self, rate: float) -> float:
         return max(self._min_rate, min(self._max_rate, rate))
 
     @property
     def interval(self) -> float:
-        """Current minimum delay between requests, in seconds."""
+        """Current mean delay between requests, in seconds."""
         return 1.0 / self.rate
 
     def wait(self) -> float:
-        """Block until the next request is allowed; returns the slept duration."""
-        slept = 0.0
-        now = self._clock()
-        if self._last_request is not None:
-            gap = self.interval - (now - self._last_request)
-            if gap > 0:
-                self._sleep(gap)
-                slept = gap
-        self._last_request = self._clock()
-        return slept
+        """Block until the next request is allowed; returns the slept duration.
+
+        Reserves the next slot under the lock (so the *combined* rate across
+        workers is governed), jittering the gap, then sleeps outside the lock so
+        workers overlap.
+        """
+        with self._lock:
+            now = self._clock()
+            gap = 1.0 / self.rate
+            if self._jitter:
+                gap *= 1.0 + (self._rng() * 2.0 - 1.0) * self._jitter
+            start = now if self._next_allowed is None else max(now, self._next_allowed)
+            self._next_allowed = start + gap
+            sleep_for = start - now
+        if sleep_for > 0:
+            self._sleep(sleep_for)
+        return sleep_for
 
     def on_success(self) -> None:
         """Additive increase: speed up after a streak of clean requests."""
-        self._successes += 1
-        if self._successes >= self._success_threshold:
-            self._successes = 0
-            self.rate = self._clamp(self.rate + self._increase_step)
+        with self._lock:
+            self._successes += 1
+            if self._successes >= self._success_threshold:
+                self._successes = 0
+                self.rate = self._clamp(self.rate + self._increase_step)
 
     def on_rate_limited(self) -> None:
         """Multiplicative decrease: back off on a 429 / Too Many Requests."""
-        self._successes = 0
-        self.rate = self._clamp(self.rate * self._decrease_factor)
+        with self._lock:
+            self._successes = 0
+            self.rate = self._clamp(self.rate * self._decrease_factor)
 
     def on_waf_block(self) -> None:
         """A hard block: back off and pause for a cooldown before resuming."""
         self.on_rate_limited()
         if self._waf_cooldown > 0:
             self._sleep(self._waf_cooldown)
-            self._last_request = self._clock()
+            with self._lock:
+                self._next_allowed = self._clock()

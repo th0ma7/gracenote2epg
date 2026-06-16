@@ -61,7 +61,7 @@ gracenote2epg auto-detects your system and uses appropriate directories:
 
   <!-- Download performance -->
   <setting id="dlworkers">auto</setting>                       <!-- Parallel download workers: 1=sequential, 2-8=fixed, auto=recommended -->
-  <setting id="dlthreshold">auto</setting>                     <!-- Switch to sequential above N pending downloads (avoids 429 wall): auto(~500) or a number -->
+  <setting id="dlthreshold">auto</setting>                     <!-- auto=adaptive concurrency (parallel, rides out 429s); a number=go sequential above N pending downloads -->
 
   <!-- Image source host (first 'enabled' is used) -->
   <imagesources>
@@ -92,19 +92,25 @@ Parallel workers each reuse one persistent connection and share a combined-rate
 governor, so a refresh's new-series delta downloads ~3× faster without tripping
 the server. There is a single data host (no alternate source to configure).
 
-`dlthreshold` guards the cold-cache case. The Gracenote API enforces a
-cumulative-volume wall (HTTP 429) after a few hundred requests, which concurrency
-reaches sooner; a single sequential connection is never blocked. So when the
-number of series details to fetch reaches `dlthreshold`, the run downloads them
-sequentially (slower but reliable); below it, the parallel pool is used.
+`dlthreshold` decides how the cold-cache case is handled. The Gracenote API
+enforces a cumulative-volume wall (HTTP 429) after a few hundred requests, which
+concurrency reaches sooner; a single sequential connection is never blocked.
 
-- `auto` (default) — the observed wall, ~500.
-- a positive integer — an explicit batch size to switch at.
+- `auto` (default) — **adaptive concurrency**. The pool stays parallel and rides
+  the wall like a wave: on a 429 it halves the number of in-flight workers
+  (collapsing toward one) and the rate governor slows down; after a clean streak
+  it ramps both back up. Faster than sequential when the server tolerates short
+  bursts, and it self-tunes. Every request also carries an adaptive, jittered
+  delay (one worker or several), so the stream looks organic rather than
+  metronomic.
+- a positive integer (e.g. `500`) — when at least that many series details are
+  pending, download them over a **single sequential connection** (slower but the
+  WAF never blocks one connection); below it, parallel as usual.
 
-As a safety net, even in parallel mode the pool aborts early if the server keeps
-returning 429 (instead of crawling), and details are saved as they arrive, so a
-partial/aborted run keeps its progress and the rest is fetched on the next run —
-the process always terminates on its own.
+Either way the pool **aborts early** if the server stays shut (consecutive 429s
+that never recover), and details are **saved as they arrive**, so a partial or
+aborted run keeps its progress, the rest is fetched on the next run, and the
+process always terminates on its own.
 
 ## Image Source
 
