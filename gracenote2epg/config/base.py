@@ -141,6 +141,23 @@ class ConfigManager:
         except (TypeError, ValueError):
             return self.AUTO_DOWNLOAD_THRESHOLD
 
+    def _resolve_backup_retention(self, value) -> int:
+        """Number of distinct config backups to keep from ``reconf``.
+
+        A positive integer keeps that many; ``unlimited`` or ``0`` keeps all;
+        missing/unknown values fall back to the default.
+        """
+        if value is None:
+            return ConfigMigrator.BACKUP_RETENTION
+        text = str(value).strip().lower()
+        if text in ("unlimited", "0"):
+            return 0
+        try:
+            count = int(text)
+            return count if count > 0 else 0
+        except (TypeError, ValueError):
+            return ConfigMigrator.BACKUP_RETENTION
+
     def _parse_and_migrate_config(self):
         """Parse configuration file and handle migration if needed"""
         # Parse configuration file
@@ -148,6 +165,10 @@ class ConfigManager:
             self.config_file
         )
         self.version = version
+
+        # Honour the configured config-backup retention before any backup is
+        # written during the migration below.
+        self.migrator.max_backups = self._resolve_backup_retention(all_settings.get("reconf"))
 
         # Categorize settings and check migration needs
         valid_settings = {

@@ -46,6 +46,7 @@ class ConfigValidator:
             "logrotate": str,
             "relogs": str,
             "rexmltv": str,
+            "reconf": str,
             # Download performance
             "dlworkers": str,
             "dlthreshold": str,

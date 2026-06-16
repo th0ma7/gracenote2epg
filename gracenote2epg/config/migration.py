@@ -16,6 +16,10 @@ from typing import Dict, Any, List, Tuple
 class ConfigMigrator:
     """Handles configuration migration and cleanup operations"""
 
+    # How many timestamped config backups to keep (older ones are pruned on each
+    # new backup, so they don't accumulate indefinitely).
+    BACKUP_RETENTION = 10
+
     # DEPRECATED settings for simplified removal (no migration)
     DEPRECATED_SETTINGS = {
         "auto_lineup": "lineupid",
@@ -34,6 +38,9 @@ class ConfigMigrator:
 
     def __init__(self):
         self._backup_file_created: str = None
+        # Number of distinct config backups to keep; overridable from the
+        # ``reconf`` setting. 0 = unlimited (no cleanup).
+        self.max_backups: int = self.BACKUP_RETENTION
 
     def analyze_migration_needs(
         self,
@@ -86,18 +93,73 @@ class ConfigMigrator:
         return migration_needed, deprecated_settings, unknown_settings, ordering_needed
 
     def create_backup(self, config_file: Path) -> str:
-        """Create backup of configuration file before migration"""
+        """Create backup of configuration file before migration.
+
+        Skips writing a new backup when the current config is byte-for-byte
+        identical to the most recent one (no point duplicating it), then prunes
+        to the most recent distinct versions.
+        """
+        config_file = Path(config_file)
+        existing = sorted(config_file.parent.glob(f"{config_file.name}.backup.*"))
+
+        try:
+            current = config_file.read_bytes()
+            if existing and existing[-1].read_bytes() == current:
+                logging.debug("Config unchanged since last backup; not duplicating it")
+                self._backup_file_created = str(existing[-1])
+                self._prune_old_backups(config_file)
+                return str(existing[-1])
+        except OSError:
+            pass  # fall through and back up normally
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_file = f"{config_file}.backup.{timestamp}"
-
         try:
             shutil.copy2(config_file, backup_file)
             logging.info("Created configuration backup: %s", backup_file)
             self._backup_file_created = backup_file
+            self._prune_old_backups(config_file)
             return backup_file
         except Exception as e:
             logging.error("Failed to create backup: %s", str(e))
             raise
+
+    def _prune_old_backups(self, config_file: Path) -> None:
+        """Keep only the most recent ``BACKUP_RETENTION`` *distinct* backups.
+
+        Walks the backups newest-first (the ``YYYYMMDD_HHMMSS`` timestamp sorts
+        lexicographically) and keeps the newest occurrence of each distinct
+        content, up to the retention limit. Older duplicates and anything beyond
+        the limit are deleted — so we never keep 10 identical files.
+        """
+        try:
+            retention = self.max_backups
+            if retention <= 0:
+                return  # 0/negative = unlimited (no cleanup)
+            backups = sorted(config_file.parent.glob(f"{config_file.name}.backup.*"), reverse=True)
+            seen = set()  # distinct contents kept so far (files are tiny)
+            removed = 0
+            for backup in backups:  # newest first
+                try:
+                    content = backup.read_bytes()
+                except OSError:
+                    continue
+                if content not in seen and len(seen) < retention:
+                    seen.add(content)  # keep newest copy of this version
+                else:
+                    try:
+                        backup.unlink()  # older duplicate, or beyond retention
+                        removed += 1
+                    except OSError as e:
+                        logging.debug("Could not remove old config backup %s: %s", backup.name, e)
+            if removed:
+                logging.info(
+                    "Config backup cleanup: removed %d old/duplicate backup(s), kept %d distinct",
+                    removed,
+                    len(seen),
+                )
+        except Exception as e:
+            logging.debug("Config backup cleanup skipped: %s", e)
 
     def perform_migration(
         self,
