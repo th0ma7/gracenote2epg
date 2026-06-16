@@ -206,6 +206,46 @@ class EarlyAbortTests(unittest.TestCase):
         self.assertEqual(len(results), 20)  # still terminates (bounded by max_attempts)
 
 
+class AdaptiveConcurrencyTests(unittest.TestCase):
+    def test_concurrency_collapses_under_429_then_completes(self):
+        # Server rate-limits the first 30 requests, then is happy.
+        state = {"n": 0}
+        lock = threading.Lock()
+        limits = []
+
+        def execute(session, task):
+            with lock:
+                state["n"] += 1
+                limited = state["n"] <= 30
+            limits.append(pool.concurrency_limit)
+            return DownloadResult(task.task_id, success=not limited, rate_limited=limited)
+
+        # abort disabled so the early-stop doesn't pre-empt the wave.
+        pool = PacedWorkerPool(execute, workers=8, governor=instant_governor(), abort_after=0)
+        results = pool.run(tasks(120), max_attempts=1)
+
+        self.assertEqual(len(results), 120)  # all accounted, no deadlock
+        self.assertLess(min(limits), 8)  # the in-flight ceiling collapsed
+        self.assertEqual(min(limits), 1)  # all the way down to a single worker
+
+    def test_disabling_adaptive_concurrency_keeps_full_width(self):
+        seen = []
+
+        def execute(session, task):
+            seen.append(pool.concurrency_limit)
+            return DownloadResult(task.task_id, success=False, rate_limited=True)
+
+        pool = PacedWorkerPool(
+            execute,
+            workers=4,
+            governor=instant_governor(),
+            abort_after=0,
+            adaptive_concurrency=False,
+        )
+        pool.run(tasks(20), max_attempts=1)
+        self.assertTrue(all(limit == 4 for limit in seen))  # never collapses
+
+
 class OnResultTests(unittest.TestCase):
     def test_on_result_called_once_per_final_result(self):
         seen = []

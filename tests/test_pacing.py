@@ -68,6 +68,22 @@ class RateControllerPacingTests(unittest.TestCase):
         rc.wait()
         self.assertAlmostEqual(t.slept[-1], 0.5, places=6)
 
+    def test_jitter_varies_the_gap(self):
+        t = FakeTime()
+        rng = iter([0.0, 1.0, 0.5])  # min, max, mid jitter factors
+        rc = RateController(
+            initial_rate=2.0,  # mean interval 0.5s
+            jitter=0.5,
+            clock=t.clock,
+            sleep=t.sleep,
+            rng=lambda: next(rng),
+        )
+        rc.wait()  # reserves a short gap (rng=0.0 -> factor 0.5 -> 0.25s)
+        rc.wait()  # sleeps that 0.25s, reserves a long gap (rng=1.0 -> 0.75s)
+        rc.wait()  # sleeps the 0.75s
+        self.assertAlmostEqual(t.slept[0], 0.25, places=6)
+        self.assertAlmostEqual(t.slept[1], 0.75, places=6)
+
     def test_wait_accounts_for_elapsed_time(self):
         t = FakeTime()
         rc = RateController(initial_rate=2.0, clock=t.clock, sleep=t.sleep)  # interval 0.5

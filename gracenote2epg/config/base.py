@@ -117,29 +117,23 @@ class ConfigManager:
         except (TypeError, ValueError):
             return self.AUTO_DOWNLOAD_WORKERS
 
-    # Pending-download count above which series details switch to sequential.
-    # The Gracenote API WAF blocks (HTTP 429) after a few hundred requests, and
-    # the cumulative wall is reached around ~500; staying parallel only below it
-    # keeps the speed win for normal refreshes while a cold rebuild (a large
-    # batch) goes sequential, which the server never rate-limits.
-    AUTO_DOWNLOAD_THRESHOLD = 500
+    def get_download_threshold(self) -> Optional[int]:
+        """Batch size at/above which series details download sequentially.
 
-    def get_download_threshold(self) -> int:
-        """Parallel→sequential switch point from ``dlthreshold``.
-
-        When the number of series details to download is at or above this value,
-        the run uses a single sequential connection (which never trips the WAF);
-        below it, the parallel worker pool is used. ``auto`` (default) = ~the
-        observed WAF wall; a positive integer overrides it. ``0``/unknown → auto.
+        ``auto`` (default) returns ``None``: stay parallel and let the adaptive
+        concurrency limiter ride out 429s (collapse toward one worker, then ramp
+        back). A positive integer forces a single sequential connection once that
+        many details are pending (the WAF never blocks one connection).
+        ``0``/unknown → ``auto`` (None).
         """
         value = str(self.settings.get("dlthreshold", "auto")).strip().lower()
         if value == "auto":
-            return self.AUTO_DOWNLOAD_THRESHOLD
+            return None
         try:
             parsed = int(value)
-            return parsed if parsed > 0 else self.AUTO_DOWNLOAD_THRESHOLD
+            return parsed if parsed > 0 else None
         except (TypeError, ValueError):
-            return self.AUTO_DOWNLOAD_THRESHOLD
+            return None
 
     def _resolve_backup_retention(self, value) -> int:
         """Number of distinct config backups to keep from ``reconf``.

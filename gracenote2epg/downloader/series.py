@@ -29,7 +29,7 @@ class SeriesDownloader(DownloaderStatsMixin):
         self.cached_series: Set[str] = set()
 
     def download_series_details(
-        self, series_list: List[str], workers: int = 1, threshold: int = 0
+        self, series_list: List[str], workers: int = 1, threshold: Optional[int] = None
     ) -> bool:
         """
         Download extended details for series with intelligent caching
@@ -64,10 +64,11 @@ class SeriesDownloader(DownloaderStatsMixin):
             workers,
         )
 
-        # Large cold-cache batches trip the Gracenote rate-limit wall (HTTP 429)
-        # under concurrency; the server never blocks a single sequential
-        # connection, so switch to it above the configured threshold.
-        if workers > 1 and threshold and len(to_download) >= threshold:
+        # With an explicit dlthreshold, large cold-cache batches download
+        # sequentially (the WAF never blocks a single connection). With
+        # dlthreshold=auto (threshold is None) we stay parallel and let the
+        # adaptive concurrency limiter ride out any 429s instead.
+        if workers > 1 and threshold is not None and len(to_download) >= threshold:
             logging.warning(
                 "Large batch (%d ≥ dlthreshold %d): downloading sequentially to avoid the "
                 "Gracenote rate-limit wall (HTTP 429); this is slower but reliable.",
