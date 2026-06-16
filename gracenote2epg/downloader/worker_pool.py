@@ -177,7 +177,12 @@ class PacedWorkerPool:
     def _process(self, session, task: DownloadTask) -> DownloadResult:
         """Pace (governed jittered rate), run one request, feed the governor."""
         slept = self._governor.wait()
-        logging.debug("  Adaptive delay: %.2fs (rate %.1f/s)", slept, self._governor.rate)
+        logging.debug(
+            "  Downloading %s (adaptive delay %.2fs, rate %.1f/s)",
+            task.task_id,
+            slept,
+            self._governor.rate,
+        )
         try:
             result = self._execute(session, task)
         except Exception as e:  # never let one task kill a worker

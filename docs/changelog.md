@@ -75,6 +75,12 @@ with no change to the generated guide.
 - **`--basedir`**: now honoured for the config, cache, log and XMLTV locations.
 
 ### Changed
+- **Download/retention logging**: parallel downloads now trace each item with
+  its id and an `x/y` counter (e.g. `Extended details: SH… (377/1347)`,
+  `Guide block: …`), the per-request adaptive delay names the item it paces, the
+  unified retention summary now includes config backups (`reconf`), and the log
+  rotation period trace reads clearly (`current period, still in progress`
+  instead of `Complete: False`).
 - **Startup logging**: the active config, cache, log and XMLTV paths are now
   shown at startup (log and `--console`).
 - **Internal structure**: `xmltv.py` (947 lines) and `logrotate.py` (657 lines)

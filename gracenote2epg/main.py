@@ -139,6 +139,11 @@ def setup_logging(logging_config: dict, log_file: Path, retention_config: dict):
             log_retention,
         )
         logging.debug("  XMLTV backups: %d days retention", xmltv_retention)
+        config_backups = retention_config.get("config_backup_retention", 10)
+        logging.debug(
+            "  Config backups: %s",
+            "unlimited" if config_backups == 0 else "%d kept" % config_backups,
+        )
         logging.debug(
             "  Current log size: %d bytes, backup files: %d",
             rotation_status.get("current_log_size", 0),

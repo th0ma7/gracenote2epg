@@ -40,6 +40,17 @@ class RetentionManager:
             settings.get("rexmltv", "7"), "daily"  # XMLTV backups are always daily
         )
 
+        # Config backups (reconf) are a COUNT of distinct versions, not days,
+        # because they are change-triggered rather than periodic. 0 = unlimited.
+        reconf = str(settings.get("reconf", "10")).strip().lower()
+        if reconf in ("unlimited", "0"):
+            config_backup_retention = 0
+        else:
+            try:
+                config_backup_retention = max(0, int(reconf))
+            except ValueError:
+                config_backup_retention = 10
+
         return {
             # Log rotation configuration
             "enabled": rotation_enabled,
@@ -48,10 +59,12 @@ class RetentionManager:
             # Extended retention information
             "log_retention_days": log_retention_days,
             "xmltv_retention_days": xmltv_retention_days,
+            "config_backup_retention": config_backup_retention,  # count, 0=unlimited
             # Original settings for logging
             "logrotate_setting": settings.get("logrotate", "true"),
             "relogs_setting": settings.get("relogs", "30"),
             "rexmltv_setting": settings.get("rexmltv", "7"),
+            "reconf_setting": settings.get("reconf", "10"),
         }
 
     def _parse_retention_to_days(self, retention_value: str, interval: str) -> int:
