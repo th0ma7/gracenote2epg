@@ -40,19 +40,26 @@ with no change to the generated guide.
   setting controls the response:
   - `auto` (default) = **adaptive concurrency**: the parallel pool rides the wall
     like a wave — a 429 halves the in-flight workers (collapsing toward one) and
-    slows the shared rate governor, and a clean streak ramps both back up. Every
-    request also carries an adaptive, jittered delay (one worker or several) so
-    the stream looks organic, not metronomic.
+    slows the shared rate governor; if the wall holds it **cools down** to let the
+    server's window reopen (re-queuing the blocked items, not failing them) and
+    **ramps back up** once requests succeed again, repeating as needed. It only
+    gives up (deferring the rest to the next run) after several cooldowns produce
+    no success. Every request also carries an adaptive, jittered delay (one worker
+    or several) so the stream looks organic, not metronomic.
   - a number (e.g. `500`) = download large batches over a single **sequential**
     connection (never rate-limited), parallel below the threshold.
 
-  Either way the pool **aborts early** if the server stays shut (instead of
-  crawling forever), logs blocks/back-offs at WARNING, and **saves details as
-  they arrive** — so an interrupted or aborted run keeps its progress, the rest
+  Either way blocks/back-offs are logged at WARNING and details are **saved as
+  they arrive** — so a deferred or interrupted run keeps its progress, the rest
   is fetched next run, and the process always terminates on its own. Config
   schema → 8.
 
 ### Fixed
+- **Never overwrite a good guide with an empty one**: if the guide download
+  returns no programmes at all (e.g. the server rate-limits every block), the
+  run now keeps the existing `xmltv.xml` and exits with an error instead of
+  regenerating an empty guide over it. The next run rebuilds it once the server
+  recovers.
 - **Config backup retention**: timestamped configuration backups
   (`gracenote2epg.xml.backup.*`) were never cleaned up and accumulated
   indefinitely (hundreds of files), many byte-for-byte identical. A new backup
@@ -75,6 +82,12 @@ with no change to the generated guide.
 - **`--basedir`**: now honoured for the config, cache, log and XMLTV locations.
 
 ### Changed
+- **Download/retention logging**: parallel downloads now trace each item with
+  its id and an `x/y` counter (e.g. `Extended details: SH… (377/1347)`,
+  `Guide block: …`), the per-request adaptive delay names the item it paces, the
+  unified retention summary now includes config backups (`reconf`), and the log
+  rotation period trace reads clearly (`current period, still in progress`
+  instead of `Complete: False`).
 - **Startup logging**: the active config, cache, log and XMLTV paths are now
   shown at startup (log and `--console`).
 - **Internal structure**: `xmltv.py` (947 lines) and `logrotate.py` (657 lines)

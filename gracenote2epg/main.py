@@ -139,6 +139,11 @@ def setup_logging(logging_config: dict, log_file: Path, retention_config: dict):
             log_retention,
         )
         logging.debug("  XMLTV backups: %d days retention", xmltv_retention)
+        config_backups = retention_config.get("config_backup_retention", 10)
+        logging.debug(
+            "  Config backups: %s",
+            "unlimited" if config_backups == 0 else "%d kept" % config_backups,
+        )
         logging.debug(
             "  Current log size: %d bytes, backup files: %d",
             rotation_status.get("current_log_size", 0),
@@ -366,8 +371,28 @@ def main():
             xmltv_generator = XmltvGenerator(
                 cache_manager, image_base_url=config_manager.get_image_source()
             )
+            schedule = data_parser.get_schedule()
+
+            # Safety: if the guide produced no programmes at all (e.g. the server
+            # rate-limited every block), do NOT overwrite a previously good
+            # xmltv.xml with an empty guide. Leave it untouched and fail — the
+            # next run (after the WAF window resets) will rebuild it.
+            episode_count = sum(
+                1
+                for station_data in schedule.values()
+                for key in station_data
+                if not key.startswith("ch")
+            )
+            if episode_count == 0:
+                logging.error(
+                    "No guide data available (guide download failed or returned nothing); "
+                    "keeping the existing xmltv.xml rather than overwriting it with an empty "
+                    "guide. Will retry on the next run."
+                )
+                return 1
+
             xmltv_success = xmltv_generator.generate_xmltv(
-                schedule=data_parser.get_schedule(), config=config, xmltv_file=xmltv_file
+                schedule=schedule, config=config, xmltv_file=xmltv_file
             )
 
             if not xmltv_success:

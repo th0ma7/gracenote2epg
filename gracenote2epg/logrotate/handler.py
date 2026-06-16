@@ -167,13 +167,15 @@ class CopyTruncateTimedRotatingFileHandler(logging.handlers.BaseRotatingHandler)
                                 "last_line": line_num,
                             }
 
+                            span = period_start.strftime("%Y-%m-%d")
+                            if period_end != period_start:
+                                span += " to " + period_end.strftime("%Y-%m-%d")
                             logging.debug(
-                                "Found %s %s (%s to %s) - Complete: %s",
+                                "Found %s log period %s (%s) - %s",
                                 self.period_name,
                                 period_suffix,
-                                period_start.strftime("%Y-%m-%d"),
-                                period_end.strftime("%Y-%m-%d"),
-                                is_complete,
+                                span,
+                                "complete" if is_complete else "current period, still in progress",
                             )
 
                         # Add line to this period

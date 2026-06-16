@@ -98,19 +98,20 @@ concurrency reaches sooner; a single sequential connection is never blocked.
 
 - `auto` (default) — **adaptive concurrency**. The pool stays parallel and rides
   the wall like a wave: on a 429 it halves the number of in-flight workers
-  (collapsing toward one) and the rate governor slows down; after a clean streak
-  it ramps both back up. Faster than sequential when the server tolerates short
-  bursts, and it self-tunes. Every request also carries an adaptive, jittered
-  delay (one worker or several), so the stream looks organic rather than
-  metronomic.
+  (collapsing toward one) and the rate governor slows down; if the wall holds it
+  **cools down** to let the server's window reopen (re-queuing the blocked items
+  rather than failing them), and once requests succeed again it **ramps both back
+  up** — repeating as needed. It only **gives up** (deferring the rest to the next
+  run) if several cooldowns in a row produce no success at all. Every request
+  also carries an adaptive, jittered delay (one worker or several), so the stream
+  looks organic rather than metronomic.
 - a positive integer (e.g. `500`) — when at least that many series details are
   pending, download them over a **single sequential connection** (slower but the
   WAF never blocks one connection); below it, parallel as usual.
 
-Either way the pool **aborts early** if the server stays shut (consecutive 429s
-that never recover), and details are **saved as they arrive**, so a partial or
-aborted run keeps its progress, the rest is fetched on the next run, and the
-process always terminates on its own.
+Either way details are **saved as they arrive**, so a partial or deferred run
+keeps its progress, the rest is fetched on the next run, and the process always
+terminates on its own.
 
 ## Image Source
 

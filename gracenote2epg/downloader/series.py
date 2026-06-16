@@ -119,12 +119,8 @@ class SeriesDownloader(DownloaderStatsMixin):
         total = len(to_download)
         tally_lock = threading.Lock()
 
-        def on_progress(done: int, _total: int):
-            if done == 1 or done % max(1, total // 10) == 0 or done == total:
-                logging.info("  Extended details: %d/%d", done, total)
-
         def on_result(result) -> None:
-            # Runs in worker threads as each download finalises.
+            # Runs in worker threads as each download finalises (save-as-you-go).
             saved = False
             if result.success and result.content:
                 try:
@@ -138,6 +134,17 @@ class SeriesDownloader(DownloaderStatsMixin):
                 else:
                     self.failed_count += 1
                     self.failed_series.append(result.task_id)
+                idx = self.downloaded_count + self.failed_count  # completed so far
+            # Per-item trace (parallel completes out of order) + periodic summary.
+            logging.debug(
+                "  Extended details: %s (%d/%d)%s",
+                result.task_id,
+                idx,
+                total,
+                "" if saved else " [failed]",
+            )
+            if idx == 1 or idx % max(1, total // 10) == 0 or idx == total:
+                logging.info("  Extended details: %d/%d", idx, total)
 
         tasks = [
             DownloadTask(
@@ -153,7 +160,6 @@ class SeriesDownloader(DownloaderStatsMixin):
             execute,
             workers=workers,
             session_factory=make_session,
-            on_progress=on_progress,
             on_result=on_result,
         )
         # Series details are non-critical: one best-effort retry (re-queued at

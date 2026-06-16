@@ -127,24 +127,41 @@ class GuideDownloader(DownloaderStatsMixin):
         if not tasks:
             return
 
+        import threading
+
         existed_map = dict(to_fetch)
-        pool = PacedWorkerPool(execute, workers=workers, session_factory=make_session)
-        # Guide blocks are important: retry failed ones (re-queued at the end).
-        for result in pool.run(tasks, max_attempts=3):
+        total = len(tasks)
+        tally_lock = threading.Lock()
+
+        def on_result(result) -> None:
+            # Runs as each block finalises (save-as-you-go).
             saved = False
             if result.success and result.content:
                 saved = self.cache_manager.validate_and_save_guide_block(
                     result.content, result.task_id
                 )
-            if saved:
-                self.downloaded_count += 1
-            elif existed_map.get(result.task_id):
-                # Refresh failed but the previous version is still on disk.
-                self.cached_count += 1
-            else:
-                self.failed_count += 1
+            with tally_lock:
+                if saved:
+                    self.downloaded_count += 1
+                    note = ""
+                elif existed_map.get(result.task_id):
+                    # Refresh failed but the previous version is still on disk.
+                    self.cached_count += 1
+                    note = " [kept cached]"
+                else:
+                    self.failed_count += 1
+                    note = " [failed]"
+                idx = self.downloaded_count + self.cached_count + self.failed_count
+            logging.debug("  Guide block: %s (%d/%d)%s", result.task_id, idx, total, note)
+
+        pool = PacedWorkerPool(
+            execute, workers=workers, session_factory=make_session, on_result=on_result
+        )
+        # Guide blocks are important: retry failed ones (re-queued at the end).
+        pool.run(tasks, max_attempts=3)
 
         self.http_requests = pool.requests
+        self.rate_limited = pool.rate_limited
         self.rate_limited = pool.rate_limited
 
     def _download_single_block(
