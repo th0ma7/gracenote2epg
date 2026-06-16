@@ -119,8 +119,16 @@ class DataParser:
             grid_time += 10800  # Next 3-hour block
 
     def _apply_series_details_to_schedule(self):
-        """Apply downloaded series details to parsed episodes - pure parsing logic"""
-        processed_series = set()
+        """Apply downloaded series details to every airing - pure parsing logic.
+
+        The details (series image/box art, credits, genres, per-episode synopsis
+        and original air date) must be applied to *each* airing of a series, not
+        just the first one seen. We only cache the per-series disk read so the
+        same JSON isn't reloaded for every airing; applying it stays per-episode
+        (and is in fact more accurate, since synopsis/air-date are matched by the
+        airing's own episode id).
+        """
+        details_by_series = {}  # series_id -> loaded details (or None), cached per disk read
 
         for station_id, station_data in self.schedule.items():
             for episode_key, episode_data in station_data.items():
@@ -128,16 +136,18 @@ class DataParser:
                     continue  # Skip channel metadata
 
                 series_id = episode_data.get("epseries")
-                if not series_id or series_id in processed_series:
+                if not series_id:
                     continue
 
-                # Get cached series details (already downloaded)
-                series_details = self.series_downloader.get_cached_series_details(series_id)
+                if series_id not in details_by_series:
+                    details_by_series[series_id] = self.series_downloader.get_cached_series_details(
+                        series_id
+                    )
+                series_details = details_by_series[series_id]
 
                 if series_details:
-                    # Pure parsing - apply details to episode data
+                    # Pure parsing - apply details to this airing's episode data
                     self.series_parser.parse_series_details(episode_data, series_details, series_id)
-                    processed_series.add(series_id)
 
     def get_active_series_list(self) -> List[str]:
         """Extract list of active series from current schedule"""
