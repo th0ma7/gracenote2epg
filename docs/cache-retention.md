@@ -67,6 +67,23 @@ All cache and retention settings are now unified in a single section:
 - **Period names**: `weekly`, `monthly`, `quarterly` - Keep files for specified period
 - **Unlimited**: `unlimited` or `0` - Never delete old files
 
+#### Config Backup Retention
+
+```xml
+<setting id="reconf">10</setting>
+```
+
+A configuration backup (`gracenote2epg.xml.backup.<timestamp>`) is written before
+the config is changed (a schema upgrade, or removing deprecated settings). Unlike
+the time-based settings above, `reconf` is a **count**, because config backups
+are triggered by changes rather than on a schedule:
+
+- **Number**: `10`, `5` - keep that many of the most recent **distinct** backups
+- **Unlimited**: `unlimited` or `0` - never delete config backups
+
+A new backup identical to the most recent one is skipped, and older duplicates
+are pruned, so the kept files are always meaningfully different versions.
+
 ## Migration from Old Settings
 
 Old settings are automatically migrated:

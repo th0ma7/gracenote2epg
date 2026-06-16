@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from gracenote2epg.config.base import ConfigManager
 from gracenote2epg.config.migration import ConfigMigrator
 
 
@@ -59,6 +60,36 @@ class BackupRetentionTests(unittest.TestCase):
         m = ConfigMigrator()
         m.create_backup(self.cfg)  # current config is "<settings/>", differs
         self.assertEqual(len(self._names()), 2)
+
+    def test_reconf_count_drives_pruning(self):
+        for i in range(10):
+            self._backup(f"20260616_{i:06d}", f"v{i}")
+        m = ConfigMigrator()
+        m.backup_retention = 3  # as resolved from reconf
+        m._prune_old_backups(self.cfg)
+        self.assertEqual(len(self._names()), 3)
+
+    def test_reconf_unlimited_keeps_all(self):
+        for i in range(15):
+            self._backup(f"20260616_{i:06d}", f"v{i}")
+        m = ConfigMigrator()
+        m.backup_retention = 0  # unlimited
+        m._prune_old_backups(self.cfg)
+        self.assertEqual(len(self._names()), 15)
+
+
+class ReconfResolutionTests(unittest.TestCase):
+    def _resolve(self, value):
+        cm = ConfigManager(Path(tempfile.mkdtemp()) / "gracenote2epg.xml")
+        return cm._resolve_backup_retention(value)
+
+    def test_resolution(self):
+        self.assertEqual(self._resolve(None), ConfigMigrator.BACKUP_RETENTION)  # default
+        self.assertEqual(self._resolve("10"), 10)
+        self.assertEqual(self._resolve("5"), 5)
+        self.assertEqual(self._resolve("unlimited"), 0)  # keep all
+        self.assertEqual(self._resolve("0"), 0)
+        self.assertEqual(self._resolve("nope"), ConfigMigrator.BACKUP_RETENTION)  # fallback
 
 
 if __name__ == "__main__":

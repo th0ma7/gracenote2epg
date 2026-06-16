@@ -23,7 +23,7 @@ gracenote2epg auto-detects your system and uses appropriate directories:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="8">
+<settings version="9">
   <!-- Basic guide settings -->
   <setting id="zipcode">92101</setting>                        <!-- US ZIP or Canadian postal code -->
   <setting id="lineupid">auto</setting>                        <!-- Lineup configuration -->
@@ -57,6 +57,7 @@ gracenote2epg auto-detects your system and uses appropriate directories:
   <setting id="logrotate">true</setting>                       <!-- Log rotation: true(daily)|false|daily|weekly|monthly -->
   <setting id="relogs">30</setting>                            <!-- Log retention: days(number) or weekly|monthly|quarterly -->
   <setting id="rexmltv">7</setting>                            <!-- XMLTV backup retention: days(number) or weekly|monthly|quarterly -->
+  <setting id="reconf">10</setting>                            <!-- Config backup retention: number of distinct backups to keep (unlimited=all) -->
 
   <!-- Download performance -->
   <setting id="dlworkers">auto</setting>                       <!-- Parallel download workers: 1=sequential, 2-8=fixed, auto=recommended -->
@@ -72,10 +73,10 @@ gracenote2epg auto-detects your system and uses appropriate directories:
 </settings>
 ```
 
-> **Schema versions 6 / 7 / 8**: v6 added the `<imagesources>` block, v7 the
-> `dlworkers` setting, v8 the `dlthreshold` setting. Older configs are upgraded
-> automatically on the next run (a backup is written and the new defaults are
-> injected).
+> **Schema versions 6–9**: v6 added the `<imagesources>` block, v7 the
+> `dlworkers` setting, v8 the `dlthreshold` setting, v9 the `reconf` setting.
+> Older configs are upgraded automatically on the next run (a backup is written
+> and the new defaults are injected).
 
 ## Download Performance
 
@@ -351,7 +352,7 @@ Same format as `relogs` - controls how long to keep XMLTV backup files.
 ### Standard Home Setup
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="8">
+<settings version="9">
   <!-- Basic guide settings -->
   <setting id="zipcode">92101</setting>
   <setting id="lineupid">auto</setting>
@@ -374,7 +375,7 @@ Same format as `relogs` - controls how long to keep XMLTV backup files.
 ### Resource-Limited System
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="8">
+<settings version="9">
   <!-- Minimal resource usage -->
   <setting id="zipcode">J3B1M4</setting>
   <setting id="lineupid">auto</setting>
@@ -397,7 +398,7 @@ Same format as `relogs` - controls how long to keep XMLTV backup files.
 ### Development/Testing
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="8">
+<settings version="9">
   <!-- Testing configuration -->
   <setting id="zipcode">92101</setting>
   <setting id="lineupid">auto</setting>

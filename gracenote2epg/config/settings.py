@@ -15,14 +15,14 @@ class SettingsManager:
     """Handles XML settings parsing and management"""
 
     # Current config schema version. Bumped to 6 for the <imagesources> block,
-    # 7 for the dlworkers (parallel download) setting, then 8 for the dlthreshold
-    # (parallel→sequential switch) setting; older files are upgraded
-    # automatically on load.
-    CONFIG_VERSION = "8"
+    # 7 for the dlworkers (parallel download) setting, 8 for the dlthreshold
+    # (parallel→sequential switch) setting, then 9 for the reconf (config backup
+    # retention) setting; older files are upgraded automatically on load.
+    CONFIG_VERSION = "9"
 
     # Default configuration template
     DEFAULT_CONFIG = """<?xml version="1.0" encoding="utf-8"?>
-<settings version="8">
+<settings version="9">
   <!-- Basic guide settings -->
   <setting id="zipcode">92101</setting>
   <setting id="lineupid">auto</setting>
@@ -56,6 +56,7 @@ class SettingsManager:
   <setting id="logrotate">true</setting>
   <setting id="relogs">30</setting>
   <setting id="rexmltv">7</setting>
+  <setting id="reconf">10</setting>
 
   <!-- Download performance -->
   <setting id="dlworkers">auto</setting>
@@ -105,6 +106,7 @@ class SettingsManager:
         "logrotate",
         "relogs",
         "rexmltv",
+        "reconf",
         "dlworkers",
         "dlthreshold",
     ]
@@ -272,7 +274,7 @@ class SettingsManager:
                 ),
                 (
                     "Cache and retention policies",
-                    ["redays", "refresh", "logrotate", "relogs", "rexmltv"],
+                    ["redays", "refresh", "logrotate", "relogs", "rexmltv", "reconf"],
                 ),
                 ("Download performance", ["dlworkers", "dlthreshold"]),
             ]
@@ -351,6 +353,7 @@ class SettingsManager:
             "logrotate": "true",
             "relogs": "30",
             "rexmltv": "7",
+            "reconf": "10",
             "dlworkers": "auto",
             "dlthreshold": "auto",
         }

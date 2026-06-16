@@ -49,9 +49,10 @@ with no change to the generated guide.
 - **Config backup retention**: timestamped configuration backups
   (`gracenote2epg.xml.backup.*`) were never cleaned up and accumulated
   indefinitely (hundreds of files), many byte-for-byte identical. A new backup
-  is now skipped when it would duplicate the most recent one, and only the 10
-  most recent **distinct** versions are kept (older duplicates and excess are
-  pruned each time a backup is written).
+  is now skipped when it would duplicate the most recent one, and only the most
+  recent **distinct** versions are kept (older duplicates and excess pruned on
+  each backup). The count is configurable via the new `reconf` setting (default
+  10, `unlimited`=keep all).
 - **Series details on every airing**: extended details (series box-art `<icon>`,
   credits, genres, per-episode synopsis and original air date) were only applied
   to the *first* airing of each series in the guide. Every other airing fell
@@ -74,10 +75,10 @@ with no change to the generated guide.
   Behaviour verified byte-for-byte identical against the pre-refactor output.
 - **Geographic resolution is now built in**: postal/ZIP → city/province uses a
   small bundled GeoNames dataset read with the standard library.
-- **Config schema versions 6, 7 and 8**: v6 introduces the `<imagesources>`
-  block, v7 the `dlworkers` setting, v8 the `dlthreshold` setting. Older configs
-  are upgraded automatically on the next run (a backup is written and the new
-  defaults are injected).
+- **Config schema versions 6 to 9**: v6 introduces the `<imagesources>` block,
+  v7 the `dlworkers` setting, v8 the `dlthreshold` setting, v9 the `reconf`
+  setting. Older configs are upgraded automatically on the next run (a backup is
+  written and the new defaults are injected).
 
 ### Removed
 - **`pgeocode` dependency** (and its transitive `pandas`/`numpy` chain), which

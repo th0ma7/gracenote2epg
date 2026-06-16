@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="8">
+<settings version="9">
   <!-- Basic guide settings -->
   <setting id="days">7</setting>                               <!-- Guide duration (1-14 days) -->
   <setting id="zipcode">92101</setting>                        <!-- US ZIP or Canadian postal code -->
@@ -38,6 +38,7 @@
   <setting id="logrotate">true</setting>                       <!-- Log rotation: true(daily)|false|daily|weekly|monthly -->
   <setting id="relogs">30</setting>                            <!-- Log retention: days(number) or weekly|monthly|quarterly -->
   <setting id="rexmltv">7</setting>                            <!-- XMLTV backup retention: days(number) or weekly|monthly|quarterly -->
+  <setting id="reconf">10</setting>                            <!-- Config backup retention: number of distinct backups to keep (unlimited=all) -->
 
   <!-- Download performance -->
   <setting id="dlworkers">auto</setting>                       <!-- Parallel download workers: 1=sequential, 2-8=fixed, auto=recommended -->
