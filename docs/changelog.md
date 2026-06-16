@@ -12,9 +12,11 @@ packages (`config/`, `args/`, `parser/`, `downloader/`, `xmltv/`, `logrotate/`)
 with no change to the generated guide.
 
 ### Added
-- **Cache layout**: extended series details are now stored in a `series/`
-  subdirectory, keeping the cache root limited to guide blocks for easier
-  inspection. Legacy flat caches are migrated automatically on first run (no
+- **Cache layout**: the cache is organised into `guide/` (guide blocks),
+  `series/` (TV series details, `SH*`) and `movies/` (movie details, `MV*`)
+  subdirectories, keeping the cache root limited to the generated guide and its
+  backups for easier inspection. Older caches (flat layout, or the earlier
+  `series/`-only layout) are migrated automatically on first run (no
   re-download).
 - **Richer program metadata**: crew (directors/writers/producers) is now
   included and credits are emitted for TV series, not just movies; credits are
@@ -25,11 +27,12 @@ with no change to the generated guide.
 - **Configurable image source**: a new `<imagesources>` config block selects the
   image host (the first `enabled` source). Mirror hosts serve the same images;
   the default is `tmsimg.fancybits.co` since `www.tvtv.ca` is rate-limited.
-- **Parallel series downloads**: a bounded pool of keep-alive workers downloads
-  series details concurrently, governed by a self-regulating (AIMD) shared rate
-  limiter. Controlled by the new `dlworkers` setting (`1`=sequential, `2`-`8`
-  =fixed, `auto`=default). ~3.4× faster on the new-series delta of a refresh,
-  with no rotating User-Agents (a single one is sufficient). Config schema → 7.
+- **Parallel downloads**: a bounded pool of keep-alive workers fetches guide
+  blocks and series details concurrently, governed by a self-regulating (AIMD)
+  shared rate limiter. Controlled by the new `dlworkers` setting (`1`
+  =sequential, `2`-`8`=fixed, `auto`=default). ~3.4× faster on the new-series
+  delta of a refresh, with no rotating User-Agents (a single one is
+  sufficient). Config schema → 7.
 
 ### Fixed
 - **Series details on every airing**: extended details (series box-art `<icon>`,

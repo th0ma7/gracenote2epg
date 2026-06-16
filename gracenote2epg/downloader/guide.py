@@ -113,7 +113,7 @@ class GuideDownloader(DownloaderStatsMixin):
                 logging.warning("Block %s not in cache and --norefresh prevents download", filename)
                 self.failed_count += 1
             else:  # fetch
-                existed = (self.cache_manager.cache_dir / filename).exists()
+                existed = (self.cache_manager.guide_dir / filename).exists()
                 to_fetch.append((filename, existed))
                 tasks.append(
                     DownloadTask(

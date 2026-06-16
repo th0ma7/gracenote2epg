@@ -6,9 +6,10 @@ the candidates for enrichment.
 
 ## Sources
 
-- **Guide block** (`api/grid`, cached `YYYYMMDDHH.json.gz`): `channels[]` →
+- **Guide block** (`api/grid`, cached `guide/YYYYMMDDHH.json.gz`): `channels[]` →
   per-channel metadata + `events[]` → per-airing data + `events[].program{}`.
-- **Series details** (`api/program/overviewDetails`, cached `series/<id>.json`):
+- **Series details** (`api/program/overviewDetails`, cached `series/<id>.json`
+  for SH* IDs, `movies/<id>.json` for MV* IDs):
   series-level metadata + `overviewTab.{cast,crew}` + `upcomingEpisodeTab[]`
   (per-episode synopsis, ratings, flags, original air date, …).
 

@@ -172,31 +172,35 @@ Old settings are automatically migrated:
 
 ### Cache Directory Layout
 
-The cache directory keeps the small, frequently-rotated guide blocks at its
-root and stores the many per-series detail files in a `series/` subdirectory:
+The cache directory is organised into focused subdirectories, keeping the root
+clean for the generated guide and its backups:
 
 ```
 ~/gracenote2epg/cache/
-├── 2026061412.json.gz      # guide blocks (YYYYMMDDHH, 3-hour spans)
-├── 2026061415.json.gz
-├── ...
 ├── xmltv.xml               # generated guide
 ├── xmltv.xml.2026-06-13... # XMLTV backups
-└── series/                 # extended details, one file per series
-    ├── SH00012345.json
-    ├── MV00067890.json
-    └── EP00021161.json
+├── guide/                  # guide blocks (YYYYMMDDHH, 3-hour spans)
+│   ├── 2026061412.json.gz
+│   ├── 2026061415.json.gz
+│   └── ...
+├── series/                 # extended TV series details (IDs starting with SH)
+│   ├── SH00012345.json
+│   └── EP00021161.json
+└── movies/                 # extended movie details (IDs starting with MV)
+    └── MV00067890.json
 ```
 
-Older caches that stored series files directly at the cache root are migrated
-automatically on first run (the files are moved into `series/`, so nothing is
-re-downloaded).
+Older caches are migrated automatically on first run — guide blocks move into
+`guide/`, detail files are routed into `series/` or `movies/` by their ID
+prefix (including movies previously kept in `series/`), so nothing is
+re-downloaded.
 
 To inspect:
 
 ```bash
-ls -la ~/gracenote2epg/cache/*.json.gz      # guide blocks
+ls -la ~/gracenote2epg/cache/guide/         # guide blocks
 ls -la ~/gracenote2epg/cache/series/        # series details
+ls -la ~/gracenote2epg/cache/movies/        # movie details
 ```
 
 ### Cache Validation
@@ -261,7 +265,7 @@ grep -E "(redays|refresh|logrotate|relogs|rexmltv)" ~/gracenote2epg/conf/graceno
 
 Check guide cache:
 ```bash
-ls -la ~/gracenote2epg/cache/*.json.gz
+ls -la ~/gracenote2epg/cache/guide/
 ```
 
 Check log backups:
