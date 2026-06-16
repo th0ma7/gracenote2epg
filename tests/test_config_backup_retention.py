@@ -65,7 +65,7 @@ class BackupRetentionTests(unittest.TestCase):
         for i in range(10):
             self._backup(f"20260616_{i:06d}", f"v{i}")
         m = ConfigMigrator()
-        m.backup_retention = 3  # as resolved from reconf
+        m.max_backups = 3  # as resolved from reconf
         m._prune_old_backups(self.cfg)
         self.assertEqual(len(self._names()), 3)
 
@@ -73,7 +73,7 @@ class BackupRetentionTests(unittest.TestCase):
         for i in range(15):
             self._backup(f"20260616_{i:06d}", f"v{i}")
         m = ConfigMigrator()
-        m.backup_retention = 0  # unlimited
+        m.max_backups = 0  # unlimited
         m._prune_old_backups(self.cfg)
         self.assertEqual(len(self._names()), 15)
 

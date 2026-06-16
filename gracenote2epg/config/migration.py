@@ -40,7 +40,7 @@ class ConfigMigrator:
         self._backup_file_created: str = None
         # Number of distinct config backups to keep; overridable from the
         # ``reconf`` setting. 0 = unlimited (no cleanup).
-        self.backup_retention: int = self.BACKUP_RETENTION
+        self.max_backups: int = self.BACKUP_RETENTION
 
     def analyze_migration_needs(
         self,
@@ -133,7 +133,7 @@ class ConfigMigrator:
         the limit are deleted — so we never keep 10 identical files.
         """
         try:
-            retention = self.backup_retention
+            retention = self.max_backups
             if retention <= 0:
                 return  # 0/negative = unlimited (no cleanup)
             backups = sorted(config_file.parent.glob(f"{config_file.name}.backup.*"), reverse=True)

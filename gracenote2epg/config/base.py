@@ -168,7 +168,7 @@ class ConfigManager:
 
         # Honour the configured config-backup retention before any backup is
         # written during the migration below.
-        self.migrator.backup_retention = self._resolve_backup_retention(all_settings.get("reconf"))
+        self.migrator.max_backups = self._resolve_backup_retention(all_settings.get("reconf"))
 
         # Categorize settings and check migration needs
         valid_settings = {
