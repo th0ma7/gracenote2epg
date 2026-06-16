@@ -4,3 +4,6 @@ gracenote2epg.egg-info
 
 # Local test baseline (user-provided NAS data, not for VCS)
 tests/baseline/
+
+# Local debug logs (never commit)
+debug/

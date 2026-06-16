@@ -98,13 +98,13 @@ concurrency reaches sooner; a single sequential connection is never blocked.
 
 - `auto` (default) — **adaptive concurrency**. The pool stays parallel and rides
   the wall like a wave: on a 429 it halves the number of in-flight workers
-  (collapsing toward one) and the rate governor slows down; if the wall holds it
-  **cools down** to let the server's window reopen (re-queuing the blocked items
-  rather than failing them), and once requests succeed again it **ramps both back
-  up** — repeating as needed. It only **gives up** (deferring the rest to the next
-  run) if several cooldowns in a row produce no success at all. Every request
-  also carries an adaptive, jittered delay (one worker or several), so the stream
-  looks organic rather than metronomic.
+  (collapsing toward one) and **escalates the per-request delay** (growing up to
+  ~15s, like a backing-off client) so requests space out until one lands in a
+  reopened window — re-queuing the blocked items rather than failing them. A
+  success resets the delay and the workers **ramp back up**. It only **gives up**
+  (deferring the rest to the next run) after a long run of consecutive 429s with
+  no recovery. Every request also carries an adaptive, jittered delay (one worker
+  or several), so the stream looks organic rather than metronomic.
 - a positive integer (e.g. `500`) — when at least that many series details are
   pending, download them over a **single sequential connection** (slower but the
   WAF never blocks one connection); below it, parallel as usual.

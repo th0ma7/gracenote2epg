@@ -169,7 +169,7 @@ class RetryTests(unittest.TestCase):
         self.assertEqual(pool.requests, 4)  # one attempt each
 
     def test_stats_count_requests_and_rate_limited(self):
-        # A permanently shut wall: rides it, cools down, then gives up.
+        # A permanently shut wall: rides it (escalating delay), then gives up.
         def execute(session, task):
             return DownloadResult(task.task_id, success=False, rate_limited=True)
 
@@ -177,8 +177,7 @@ class RetryTests(unittest.TestCase):
             execute,
             workers=2,
             governor=instant_governor(),
-            block_threshold=2,
-            max_block_cooldowns=1,
+            give_up_after=4,
         )
         results = pool.run(tasks(4), max_attempts=1)
         self.assertEqual(len(results), 4)
@@ -188,7 +187,7 @@ class RetryTests(unittest.TestCase):
 
 
 class WallHandlingTests(unittest.TestCase):
-    def test_gives_up_after_fruitless_cooldowns_and_terminates(self):
+    def test_gives_up_after_persistent_429s_and_terminates(self):
         # A server stuck behind its WAF wall: every request is rate-limited.
         def execute(session, task):
             return DownloadResult(task.task_id, success=False, rate_limited=True)
@@ -197,8 +196,7 @@ class WallHandlingTests(unittest.TestCase):
             execute,
             workers=4,
             governor=instant_governor(),
-            block_threshold=4,
-            max_block_cooldowns=3,
+            give_up_after=8,
         )
         results = pool.run(tasks(500), max_attempts=2)
 
@@ -226,8 +224,7 @@ class WallHandlingTests(unittest.TestCase):
             execute,
             workers=4,
             governor=instant_governor(),
-            block_threshold=4,
-            max_block_cooldowns=10,
+            give_up_after=30,
         )
         results = pool.run(tasks(60), max_attempts=1)
 
@@ -251,7 +248,7 @@ class AdaptiveConcurrencyTests(unittest.TestCase):
             limits.append(pool.concurrency_limit)
             return DownloadResult(task.task_id, success=not limited, rate_limited=limited)
 
-        pool = PacedWorkerPool(execute, workers=8, governor=instant_governor())
+        pool = PacedWorkerPool(execute, workers=8, governor=instant_governor(), give_up_after=50)
         results = pool.run(tasks(120), max_attempts=1)
 
         self.assertEqual(len(results), 120)  # all accounted, no deadlock
@@ -271,8 +268,7 @@ class AdaptiveConcurrencyTests(unittest.TestCase):
             workers=4,
             governor=instant_governor(),
             adaptive_concurrency=False,
-            block_threshold=4,
-            max_block_cooldowns=2,
+            give_up_after=8,
         )
         results = pool.run(tasks(20), max_attempts=1)
         self.assertTrue(all(limit == 4 for limit in seen))  # never collapses

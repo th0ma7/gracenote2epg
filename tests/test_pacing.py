@@ -92,6 +92,36 @@ class RateControllerPacingTests(unittest.TestCase):
         rc.wait()
         self.assertAlmostEqual(t.slept[-1], 0.3, places=6)  # only the remainder
 
+    def test_delay_escalates_on_sustained_429s_then_resets_on_success(self):
+        t = FakeTime()
+        rc = RateController(
+            initial_rate=5.0,  # base interval 0.2s when healthy
+            min_rate=0.5,
+            failure_base=0.8,
+            max_delay=15.0,
+            clock=t.clock,
+            sleep=t.sleep,
+        )
+        rc.wait()  # prime _next_allowed (no sleep yet)
+
+        # Sustained 429s -> the per-request gap grows well past the rate floor.
+        gaps = []
+        for _ in range(8):
+            rc.on_rate_limited()
+            rc.wait()
+            gaps.append(t.slept[-1])
+        # Climbs and approaches the 15s cap (0.8 * 1.5^8 = 20 -> capped at 15).
+        self.assertGreater(gaps[-1], gaps[0])
+        self.assertGreater(gaps[-1], 10.0)
+        self.assertLessEqual(gaps[-1], 15.0)
+
+        # A success clears the streak and the long reserved gap: the next request
+        # fires immediately (sleeps 0, so nothing is recorded).
+        rc.on_success()
+        before = len(t.slept)
+        rc.wait()
+        self.assertEqual(len(t.slept), before)
+
     def test_waf_block_backs_off_and_cools_down(self):
         t = FakeTime()
         rc = RateController(
