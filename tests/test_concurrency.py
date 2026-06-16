@@ -23,8 +23,8 @@ class ConcurrencyLimiterTests(unittest.TestCase):
 
     def test_ramps_back_up_after_success_streak(self):
         c = ConcurrencyLimiter(4, success_threshold=3)
-        c.on_rate_limited()  # 4 -> 2
-        c.on_rate_limited()  # 2 -> 1
+        c.on_rate_limited()  # halve to two
+        c.on_rate_limited()  # halve to one
         self.assertEqual(c.limit, 1)
         for _ in range(3):
             c.on_success()
@@ -43,7 +43,7 @@ class ConcurrencyLimiterTests(unittest.TestCase):
         # With limit collapsed to 1, only one acquire succeeds until a release.
         c = ConcurrencyLimiter(4)
         c.on_rate_limited()
-        c.on_rate_limited()  # limit = 1
+        c.on_rate_limited()  # collapsed to a single in-flight slot
         c.acquire()
 
         got = threading.Event()
