@@ -46,6 +46,10 @@ with no change to the generated guide.
   on its own. Config schema → 8.
 
 ### Fixed
+- **Config backup retention**: timestamped configuration backups
+  (`gracenote2epg.xml.backup.*`) were never cleaned up and accumulated
+  indefinitely (hundreds of files). Only the 10 most recent are now kept; older
+  ones are pruned each time a new backup is written.
 - **Series details on every airing**: extended details (series box-art `<icon>`,
   credits, genres, per-episode synopsis and original air date) were only applied
   to the *first* airing of each series in the guide. Every other airing fell

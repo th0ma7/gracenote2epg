@@ -16,6 +16,10 @@ from typing import Dict, Any, List, Tuple
 class ConfigMigrator:
     """Handles configuration migration and cleanup operations"""
 
+    # How many timestamped config backups to keep (older ones are pruned on each
+    # new backup, so they don't accumulate indefinitely).
+    BACKUP_RETENTION = 10
+
     # DEPRECATED settings for simplified removal (no migration)
     DEPRECATED_SETTINGS = {
         "auto_lineup": "lineupid",
@@ -94,10 +98,37 @@ class ConfigMigrator:
             shutil.copy2(config_file, backup_file)
             logging.info("Created configuration backup: %s", backup_file)
             self._backup_file_created = backup_file
+            self._prune_old_backups(Path(config_file))
             return backup_file
         except Exception as e:
             logging.error("Failed to create backup: %s", str(e))
             raise
+
+    def _prune_old_backups(self, config_file: Path) -> None:
+        """Keep only the most recent ``BACKUP_RETENTION`` config backups.
+
+        Backups are named ``<config>.backup.<YYYYMMDD_HHMMSS>``; the timestamp
+        sorts lexicographically, so the newest are simply the last by name.
+        """
+        try:
+            retention = self.BACKUP_RETENTION
+            if retention <= 0:
+                return  # 0/negative = unlimited (no cleanup)
+            backups = sorted(config_file.parent.glob(f"{config_file.name}.backup.*"))
+            stale = backups[:-retention] if len(backups) > retention else []
+            for old in stale:
+                try:
+                    old.unlink()
+                except OSError as e:
+                    logging.debug("Could not remove old config backup %s: %s", old.name, e)
+            if stale:
+                logging.info(
+                    "Config backup cleanup: removed %d old backup(s), kept %d",
+                    len(stale),
+                    min(len(backups), retention),
+                )
+        except Exception as e:
+            logging.debug("Config backup cleanup skipped: %s", e)
 
     def perform_migration(
         self,
