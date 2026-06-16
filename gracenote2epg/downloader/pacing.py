@@ -38,6 +38,8 @@ class RateController:
         success_threshold: int = 10,
         waf_cooldown: float = 20.0,
         jitter: float = 0.0,
+        failure_base: float = 0.0,
+        max_delay: float = 15.0,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
         rng: Callable[[], float] = random.random,
@@ -52,6 +54,12 @@ class RateController:
         self._waf_cooldown = waf_cooldown
         # Fraction (0..1) by which each gap is randomly stretched/shrunk.
         self._jitter = max(0.0, min(1.0, jitter))
+        # Escalating per-request delay on a sustained wall: once past a couple of
+        # consecutive 429s the gap grows ~failure_base*1.5^failures (capped at
+        # max_delay), so each request is spaced increasingly far apart until one
+        # lands in a reopened window — then a success resets it. 0 disables it.
+        self._failure_base = max(0.0, failure_base)
+        self._max_delay = max_delay
         self._clock = clock
         self._sleep = sleep
         self._rng = rng
@@ -59,6 +67,7 @@ class RateController:
         self._lock = threading.Lock()
         self.rate = self._clamp(initial_rate)
         self._successes = 0
+        self._consecutive_failures = 0
         self._next_allowed: Optional[float] = None
 
     def _clamp(self, rate: float) -> float:
@@ -79,6 +88,14 @@ class RateController:
         with self._lock:
             now = self._clock()
             gap = 1.0 / self.rate
+            # On a sustained wall, escalate the per-request spacing (like a
+            # backing-off client) so requests don't keep hammering the closed
+            # window at the rate floor.
+            if self._failure_base and self._consecutive_failures > 2:
+                escalated = min(
+                    self._failure_base * (1.5**self._consecutive_failures), self._max_delay
+                )
+                gap = max(gap, escalated)
             if self._jitter:
                 gap *= 1.0 + (self._rng() * 2.0 - 1.0) * self._jitter
             start = now if self._next_allowed is None else max(now, self._next_allowed)
@@ -91,6 +108,12 @@ class RateController:
     def on_success(self) -> None:
         """Additive increase: speed up after a streak of clean requests."""
         with self._lock:
+            if self._consecutive_failures > 0:
+                # Recovering from a wall: drop the long reserved gap so the next
+                # request exploits the reopened window immediately instead of
+                # waiting out the last escalated delay.
+                self._consecutive_failures = 0
+                self._next_allowed = None
             self._successes += 1
             if self._successes >= self._success_threshold:
                 self._successes = 0
@@ -100,6 +123,7 @@ class RateController:
         """Multiplicative decrease: back off on a 429 / Too Many Requests."""
         with self._lock:
             self._successes = 0
+            self._consecutive_failures += 1  # grows the escalating per-request delay
             self.rate = self._clamp(self.rate * self._decrease_factor)
 
     def on_waf_block(self) -> None:

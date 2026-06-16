@@ -40,12 +40,13 @@ with no change to the generated guide.
   setting controls the response:
   - `auto` (default) = **adaptive concurrency**: the parallel pool rides the wall
     like a wave — a 429 halves the in-flight workers (collapsing toward one) and
-    slows the shared rate governor; if the wall holds it **cools down** to let the
-    server's window reopen (re-queuing the blocked items, not failing them) and
-    **ramps back up** once requests succeed again, repeating as needed. It only
-    gives up (deferring the rest to the next run) after several cooldowns produce
-    no success. Every request also carries an adaptive, jittered delay (one worker
-    or several) so the stream looks organic, not metronomic.
+    **escalates the per-request delay** (up to ~15s, like a backing-off client) so
+    requests space out until one lands in a reopened window (re-queuing the
+    blocked items, not failing them); a success resets the delay and the workers
+    ramp back up. It only gives up (deferring the rest to the next run) after a
+    long run of consecutive 429s with no recovery. Every request also carries an
+    adaptive, jittered delay (one worker or several) so the stream looks organic,
+    not metronomic.
   - a number (e.g. `500`) = download large batches over a single **sequential**
     connection (never rate-limited), parallel below the threshold.
 
