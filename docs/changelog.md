@@ -53,6 +53,11 @@ with no change to the generated guide.
   schema → 8.
 
 ### Fixed
+- **Never overwrite a good guide with an empty one**: if the guide download
+  returns no programmes at all (e.g. the server rate-limits every block), the
+  run now keeps the existing `xmltv.xml` and exits with an error instead of
+  regenerating an empty guide over it. The next run rebuilds it once the server
+  recovers.
 - **Config backup retention**: timestamped configuration backups
   (`gracenote2epg.xml.backup.*`) were never cleaned up and accumulated
   indefinitely (hundreds of files), many byte-for-byte identical. A new backup
