@@ -56,7 +56,7 @@ class PacedWorkerPool:
         on_progress: Optional[ProgressFn] = None,
         on_result: Optional[ResultFn] = None,
         adaptive_concurrency: bool = True,
-        give_up_after: int = 25,
+        give_up_after: int = 40,
     ):
         self._execute = execute
         self._workers = max(1, workers)
@@ -83,7 +83,8 @@ class PacedWorkerPool:
         self._on_result = on_result
         # Give up (defer the rest to the next run) after this many consecutive
         # 429s with no intervening success — i.e. the escalating delay reached its
-        # ceiling and the wall still won't reopen. 0 = never give up.
+        # ceiling and the wall still won't reopen. Observed real recoveries take
+        # up to ~15 in a row, so the default keeps a wide margin. 0 = never give up.
         self._give_up_after = give_up_after
         self._stats_lock = threading.Lock()
         self._abort = threading.Event()
