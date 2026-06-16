@@ -40,15 +40,17 @@ with no change to the generated guide.
   setting controls the response:
   - `auto` (default) = **adaptive concurrency**: the parallel pool rides the wall
     like a wave — a 429 halves the in-flight workers (collapsing toward one) and
-    slows the shared rate governor, and a clean streak ramps both back up. Every
-    request also carries an adaptive, jittered delay (one worker or several) so
-    the stream looks organic, not metronomic.
+    slows the shared rate governor; if the wall holds it **cools down** to let the
+    server's window reopen (re-queuing the blocked items, not failing them) and
+    **ramps back up** once requests succeed again, repeating as needed. It only
+    gives up (deferring the rest to the next run) after several cooldowns produce
+    no success. Every request also carries an adaptive, jittered delay (one worker
+    or several) so the stream looks organic, not metronomic.
   - a number (e.g. `500`) = download large batches over a single **sequential**
     connection (never rate-limited), parallel below the threshold.
 
-  Either way the pool **aborts early** if the server stays shut (instead of
-  crawling forever), logs blocks/back-offs at WARNING, and **saves details as
-  they arrive** — so an interrupted or aborted run keeps its progress, the rest
+  Either way blocks/back-offs are logged at WARNING and details are **saved as
+  they arrive** — so a deferred or interrupted run keeps its progress, the rest
   is fetched next run, and the process always terminates on its own. Config
   schema → 8.
 

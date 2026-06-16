@@ -169,41 +169,72 @@ class RetryTests(unittest.TestCase):
         self.assertEqual(pool.requests, 4)  # one attempt each
 
     def test_stats_count_requests_and_rate_limited(self):
+        # A permanently shut wall: rides it, cools down, then gives up.
         def execute(session, task):
             return DownloadResult(task.task_id, success=False, rate_limited=True)
 
-        pool = PacedWorkerPool(execute, workers=2, governor=instant_governor())
-        pool.run(tasks(4), max_attempts=1)
-        self.assertEqual(pool.requests, 4)
-        self.assertEqual(pool.rate_limited, 4)
+        pool = PacedWorkerPool(
+            execute,
+            workers=2,
+            governor=instant_governor(),
+            block_threshold=2,
+            max_block_cooldowns=1,
+        )
+        results = pool.run(tasks(4), max_attempts=1)
+        self.assertEqual(len(results), 4)
+        self.assertTrue(pool.aborted)
+        self.assertEqual(pool.rate_limited, pool.requests)  # every request was a 429
+        self.assertGreater(pool.requests, 0)
 
 
-class EarlyAbortTests(unittest.TestCase):
-    def test_pool_aborts_and_terminates_when_server_always_429s(self):
+class WallHandlingTests(unittest.TestCase):
+    def test_gives_up_after_fruitless_cooldowns_and_terminates(self):
         # A server stuck behind its WAF wall: every request is rate-limited.
         def execute(session, task):
             return DownloadResult(task.task_id, success=False, rate_limited=True)
 
-        pool = PacedWorkerPool(execute, workers=4, governor=instant_governor(), abort_after=10)
+        pool = PacedWorkerPool(
+            execute,
+            workers=4,
+            governor=instant_governor(),
+            block_threshold=4,
+            max_block_cooldowns=3,
+        )
         results = pool.run(tasks(500), max_attempts=2)
 
-        # It must STOP on its own (no endless crawl / requeue loop)...
+        # It must STOP on its own (cooldowns that never recover -> give up)...
         self.assertTrue(pool.aborted)
         # ...account every task exactly once so run() returns...
         self.assertEqual(len(results), 500)
         self.assertEqual({r.task_id for r in results}, {str(i) for i in range(500)})
         self.assertTrue(all(not r.success for r in results))
-        # ...and it must have stopped EARLY rather than hammering all 500x2.
+        # ...and it must have stopped EARLY rather than hammering all 500.
         self.assertLess(pool.requests, 500)
 
-    def test_no_abort_when_disabled(self):
-        def execute(session, task):
-            return DownloadResult(task.task_id, success=False, rate_limited=True)
+    def test_rides_the_wall_then_recovers_without_giving_up(self):
+        # First 20 requests are blocked, then the server recovers.
+        state = {"n": 0}
+        lock = threading.Lock()
 
-        pool = PacedWorkerPool(execute, workers=2, governor=instant_governor(), abort_after=0)
-        results = pool.run(tasks(20), max_attempts=1)
-        self.assertFalse(pool.aborted)
-        self.assertEqual(len(results), 20)  # still terminates (bounded by max_attempts)
+        def execute(session, task):
+            with lock:
+                state["n"] += 1
+                limited = state["n"] <= 20
+            return DownloadResult(task.task_id, success=not limited, rate_limited=limited)
+
+        pool = PacedWorkerPool(
+            execute,
+            workers=4,
+            governor=instant_governor(),
+            block_threshold=4,
+            max_block_cooldowns=10,
+        )
+        results = pool.run(tasks(60), max_attempts=1)
+
+        self.assertFalse(pool.aborted)  # recovered instead of giving up
+        self.assertEqual(len(results), 60)
+        # The blocked items were re-queued (not failed) and succeeded on retry.
+        self.assertTrue(all(r.success for r in results))
 
 
 class AdaptiveConcurrencyTests(unittest.TestCase):
@@ -220,11 +251,11 @@ class AdaptiveConcurrencyTests(unittest.TestCase):
             limits.append(pool.concurrency_limit)
             return DownloadResult(task.task_id, success=not limited, rate_limited=limited)
 
-        # abort disabled so the early-stop doesn't pre-empt the wave.
-        pool = PacedWorkerPool(execute, workers=8, governor=instant_governor(), abort_after=0)
+        pool = PacedWorkerPool(execute, workers=8, governor=instant_governor())
         results = pool.run(tasks(120), max_attempts=1)
 
         self.assertEqual(len(results), 120)  # all accounted, no deadlock
+        self.assertFalse(pool.aborted)  # rode it out, recovered
         self.assertLess(min(limits), 8)  # the in-flight ceiling collapsed
         self.assertEqual(min(limits), 1)  # all the way down to a single worker
 
@@ -239,11 +270,14 @@ class AdaptiveConcurrencyTests(unittest.TestCase):
             execute,
             workers=4,
             governor=instant_governor(),
-            abort_after=0,
             adaptive_concurrency=False,
+            block_threshold=4,
+            max_block_cooldowns=2,
         )
-        pool.run(tasks(20), max_attempts=1)
+        results = pool.run(tasks(20), max_attempts=1)
         self.assertTrue(all(limit == 4 for limit in seen))  # never collapses
+        self.assertTrue(pool.aborted)  # still terminates (gives up on the wall)
+        self.assertEqual(len(results), 20)
 
 
 class OnResultTests(unittest.TestCase):
