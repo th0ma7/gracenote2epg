@@ -48,6 +48,7 @@ class ConfigValidator:
             "rexmltv": str,
             # Download performance
             "dlworkers": str,
+            "dlthreshold": str,
         }
 
     def validate_postal_code_format(self, postal_code: str) -> Tuple[bool, str, str]:

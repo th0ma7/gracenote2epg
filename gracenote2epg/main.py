@@ -354,7 +354,8 @@ def main():
             # Download extended details if needed
             if config_manager.needs_extended_download():
                 extended_success = data_parser.download_and_parse_series_details(
-                    workers=config_manager.get_download_workers()
+                    workers=config_manager.get_download_workers(),
+                    threshold=config_manager.get_download_threshold(),
                 )
                 if not extended_success:
                     logging.warning(

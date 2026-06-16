@@ -23,7 +23,7 @@ gracenote2epg auto-detects your system and uses appropriate directories:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="7">
+<settings version="8">
   <!-- Basic guide settings -->
   <setting id="zipcode">92101</setting>                        <!-- US ZIP or Canadian postal code -->
   <setting id="lineupid">auto</setting>                        <!-- Lineup configuration -->
@@ -60,6 +60,7 @@ gracenote2epg auto-detects your system and uses appropriate directories:
 
   <!-- Download performance -->
   <setting id="dlworkers">auto</setting>                       <!-- Parallel download workers: 1=sequential, 2-8=fixed, auto=recommended -->
+  <setting id="dlthreshold">auto</setting>                     <!-- Switch to sequential above N pending downloads (avoids 429 wall): auto(~500) or a number -->
 
   <!-- Image source host (first 'enabled' is used) -->
   <imagesources>
@@ -71,9 +72,10 @@ gracenote2epg auto-detects your system and uses appropriate directories:
 </settings>
 ```
 
-> **Schema versions 6 / 7**: v6 added the `<imagesources>` block, v7 the
-> `dlworkers` setting. Older configs are upgraded automatically on the next run
-> (a backup is written and the new defaults are injected).
+> **Schema versions 6 / 7 / 8**: v6 added the `<imagesources>` block, v7 the
+> `dlworkers` setting, v8 the `dlthreshold` setting. Older configs are upgraded
+> automatically on the next run (a backup is written and the new defaults are
+> injected).
 
 ## Download Performance
 
@@ -88,6 +90,20 @@ gracenote2epg auto-detects your system and uses appropriate directories:
 Parallel workers each reuse one persistent connection and share a combined-rate
 governor, so a refresh's new-series delta downloads ~3× faster without tripping
 the server. There is a single data host (no alternate source to configure).
+
+`dlthreshold` guards the cold-cache case. The Gracenote API enforces a
+cumulative-volume wall (HTTP 429) after a few hundred requests, which concurrency
+reaches sooner; a single sequential connection is never blocked. So when the
+number of series details to fetch reaches `dlthreshold`, the run downloads them
+sequentially (slower but reliable); below it, the parallel pool is used.
+
+- `auto` (default) — the observed wall, ~500.
+- a positive integer — an explicit batch size to switch at.
+
+As a safety net, even in parallel mode the pool aborts early if the server keeps
+returning 429 (instead of crawling), and details are saved as they arrive, so a
+partial/aborted run keeps its progress and the rest is fetched on the next run —
+the process always terminates on its own.
 
 ## Image Source
 
@@ -335,7 +351,7 @@ Same format as `relogs` - controls how long to keep XMLTV backup files.
 ### Standard Home Setup
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="7">
+<settings version="8">
   <!-- Basic guide settings -->
   <setting id="zipcode">92101</setting>
   <setting id="lineupid">auto</setting>
@@ -358,7 +374,7 @@ Same format as `relogs` - controls how long to keep XMLTV backup files.
 ### Resource-Limited System
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="7">
+<settings version="8">
   <!-- Minimal resource usage -->
   <setting id="zipcode">J3B1M4</setting>
   <setting id="lineupid">auto</setting>
@@ -381,7 +397,7 @@ Same format as `relogs` - controls how long to keep XMLTV backup files.
 ### Development/Testing
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<settings version="7">
+<settings version="8">
   <!-- Testing configuration -->
   <setting id="zipcode">92101</setting>
   <setting id="lineupid">auto</setting>

@@ -28,13 +28,18 @@ class SeriesDownloader(DownloaderStatsMixin):
         self.failed_series: List[str] = []
         self.cached_series: Set[str] = set()
 
-    def download_series_details(self, series_list: List[str], workers: int = 1) -> bool:
+    def download_series_details(
+        self, series_list: List[str], workers: int = 1, threshold: int = 0
+    ) -> bool:
         """
         Download extended details for series with intelligent caching
 
         Args:
             series_list: List of series IDs to download
             workers: parallel download workers (1 = sequential)
+            threshold: if >0 and the number of downloads needed reaches it, fall
+                back to a single sequential connection (which the Gracenote WAF
+                never rate-limits) instead of the parallel pool
 
         Returns:
             bool: True if 70%+ successful
@@ -58,6 +63,18 @@ class SeriesDownloader(DownloaderStatsMixin):
             len(to_download),
             workers,
         )
+
+        # Large cold-cache batches trip the Gracenote rate-limit wall (HTTP 429)
+        # under concurrency; the server never blocks a single sequential
+        # connection, so switch to it above the configured threshold.
+        if workers > 1 and threshold and len(to_download) >= threshold:
+            logging.warning(
+                "Large batch (%d ≥ dlthreshold %d): downloading sequentially to avoid the "
+                "Gracenote rate-limit wall (HTTP 429); this is slower but reliable.",
+                len(to_download),
+                threshold,
+            )
+            workers = 1
 
         if workers > 1 and to_download:
             self._download_parallel(to_download, workers)
@@ -87,16 +104,39 @@ class SeriesDownloader(DownloaderStatsMixin):
         return download_success_rate >= 70 or attempted == 0
 
     def _download_parallel(self, to_download: List[str], workers: int) -> None:
-        """Download series details with a bounded keep-alive worker pool."""
+        """Download series details with a bounded keep-alive worker pool.
+
+        Each result is saved as soon as it finalises (save-as-you-go), so an
+        interrupted or early-aborted run keeps everything fetched so far.
+        """
+        import threading
+
         from .http import make_session, execute
         from .tasks import DownloadTask
         from .worker_pool import PacedWorkerPool
 
         total = len(to_download)
+        tally_lock = threading.Lock()
 
         def on_progress(done: int, _total: int):
             if done == 1 or done % max(1, total // 10) == 0 or done == total:
                 logging.info("  Extended details: %d/%d", done, total)
+
+        def on_result(result) -> None:
+            # Runs in worker threads as each download finalises.
+            saved = False
+            if result.success and result.content:
+                try:
+                    json.loads(result.content)  # validate JSON
+                    saved = self.cache_manager.save_series_details(result.task_id, result.content)
+                except json.JSONDecodeError:
+                    logging.warning("  Invalid JSON received for: %s", result.task_id)
+            with tally_lock:
+                if saved:
+                    self.downloaded_count += 1
+                else:
+                    self.failed_count += 1
+                    self.failed_series.append(result.task_id)
 
         tasks = [
             DownloadTask(
@@ -109,23 +149,18 @@ class SeriesDownloader(DownloaderStatsMixin):
         ]
 
         pool = PacedWorkerPool(
-            execute, workers=workers, session_factory=make_session, on_progress=on_progress
+            execute,
+            workers=workers,
+            session_factory=make_session,
+            on_progress=on_progress,
+            on_result=on_result,
         )
         # Series details are non-critical: one best-effort retry (re-queued at
-        # the end), and anything still missing is simply re-fetched next run.
-        for result in pool.run(tasks, max_attempts=2):
-            saved = False
-            if result.success and result.content:
-                try:
-                    json.loads(result.content)  # validate JSON
-                    saved = self.cache_manager.save_series_details(result.task_id, result.content)
-                except json.JSONDecodeError:
-                    logging.warning("  Invalid JSON received for: %s", result.task_id)
-            if saved:
-                self.downloaded_count += 1
-            else:
-                self.failed_count += 1
-                self.failed_series.append(result.task_id)
+        # the end). If the server keeps rate-limiting, the pool aborts early and
+        # anything still missing is simply re-fetched on the next run.
+        pool.run(tasks, max_attempts=2)
+        self.http_requests = pool.requests
+        self.rate_limited = pool.rate_limited
 
         self.http_requests = pool.requests
         self.rate_limited = pool.rate_limited

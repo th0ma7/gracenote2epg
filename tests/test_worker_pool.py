@@ -178,5 +178,52 @@ class RetryTests(unittest.TestCase):
         self.assertEqual(pool.rate_limited, 4)
 
 
+class EarlyAbortTests(unittest.TestCase):
+    def test_pool_aborts_and_terminates_when_server_always_429s(self):
+        # A server stuck behind its WAF wall: every request is rate-limited.
+        def execute(session, task):
+            return DownloadResult(task.task_id, success=False, rate_limited=True)
+
+        pool = PacedWorkerPool(execute, workers=4, governor=instant_governor(), abort_after=10)
+        results = pool.run(tasks(500), max_attempts=2)
+
+        # It must STOP on its own (no endless crawl / requeue loop)...
+        self.assertTrue(pool.aborted)
+        # ...account every task exactly once so run() returns...
+        self.assertEqual(len(results), 500)
+        self.assertEqual({r.task_id for r in results}, {str(i) for i in range(500)})
+        self.assertTrue(all(not r.success for r in results))
+        # ...and it must have stopped EARLY rather than hammering all 500x2.
+        self.assertLess(pool.requests, 500)
+
+    def test_no_abort_when_disabled(self):
+        def execute(session, task):
+            return DownloadResult(task.task_id, success=False, rate_limited=True)
+
+        pool = PacedWorkerPool(execute, workers=2, governor=instant_governor(), abort_after=0)
+        results = pool.run(tasks(20), max_attempts=1)
+        self.assertFalse(pool.aborted)
+        self.assertEqual(len(results), 20)  # still terminates (bounded by max_attempts)
+
+
+class OnResultTests(unittest.TestCase):
+    def test_on_result_called_once_per_final_result(self):
+        seen = []
+        lock = threading.Lock()
+
+        def on_result(result):
+            with lock:
+                seen.append(result.task_id)
+
+        pool = PacedWorkerPool(
+            lambda s, t: DownloadResult(t.task_id, True),
+            workers=3,
+            governor=instant_governor(),
+            on_result=on_result,
+        )
+        pool.run(tasks(30))
+        self.assertEqual(sorted(seen, key=int), [str(i) for i in range(30)])
+
+
 if __name__ == "__main__":
     unittest.main()
