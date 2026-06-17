@@ -114,7 +114,7 @@ class SeriesDownloader(DownloaderStatsMixin):
 
         from .http import make_session, execute
         from .tasks import DownloadTask
-        from .worker_pool import PacedWorkerPool
+        from .worker_pool import PacedWorkerPool, log_progress
 
         total = len(to_download)
         tally_lock = threading.Lock()
@@ -143,8 +143,7 @@ class SeriesDownloader(DownloaderStatsMixin):
                 total,
                 "" if saved else " [failed]",
             )
-            if idx == 1 or idx % max(1, total // 5) == 0 or idx == total:
-                logging.info("  Extended details: %d/%d", idx, total)
+            log_progress("Extended details", idx, total)
 
         tasks = [
             DownloadTask(
