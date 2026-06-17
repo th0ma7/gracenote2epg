@@ -83,6 +83,11 @@ with no change to the generated guide.
 - **`--basedir`**: now honoured for the config, cache, log and XMLTV locations.
 
 ### Changed
+- **Single User-Agent everywhere**: the sequential engine's 5-entry User-Agent
+  rotation is removed — both download paths now use the one stable browser-like
+  UA already used by the parallel pool. Rotation was unnecessary (a single UA
+  sustains hundreds of requests) and useless against the WAF, which gates by
+  request volume, not identity.
 - **Download/retention logging**: parallel downloads now trace each item with
   its id and an `x/y` counter (e.g. `Extended details: SH… (377/1347)`,
   `Guide block: …`), the per-request adaptive delay names the item it paces, the

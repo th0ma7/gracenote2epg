@@ -16,6 +16,8 @@ from typing import Optional, Dict, Any
 
 import requests
 from requests.adapters import HTTPAdapter
+
+from .http import USER_AGENT
 from urllib3.util.retry import Retry
 import urllib3
 
@@ -25,13 +27,6 @@ class OptimizedDownloader:
 
     def __init__(self, base_delay: float = 1.0, min_delay: float = 0.5):
         self.session: Optional[requests.Session] = None
-        self.user_agents = [
-            "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
-        ]
         self.last_request_time = 0
         self.base_delay = base_delay
         self.min_delay = min_delay
@@ -39,7 +34,6 @@ class OptimizedDownloader:
         self.consecutive_failures = 0
         self.waf_blocks = 0
         self.total_requests = 0
-        self.current_ua_index = 0
 
         # Initialize session
         self.init_session()
@@ -53,6 +47,7 @@ class OptimizedDownloader:
 
         # Realistic headers with forced Keep-Alive
         base_headers = {
+            "User-Agent": USER_AGENT,
             "Accept": "application/json, text/html, application/xhtml+xml, */*",
             "Accept-Language": "en-US,en;q=0.9,fr;q=0.8",
             "Accept-Encoding": "gzip, deflate, br",
@@ -82,16 +77,7 @@ class OptimizedDownloader:
         # Configure urllib3 for persistence
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-        # Set initial User-Agent
-        self.rotate_user_agent()
         logging.debug("HTTP engine initialized with persistent connections")
-
-    def rotate_user_agent(self):
-        """Rotate User-Agent intelligently"""
-        self.current_ua_index = (self.current_ua_index + 1) % len(self.user_agents)
-        new_ua = self.user_agents[self.current_ua_index]
-        self.session.headers.update({"User-Agent": new_ua})
-        logging.debug("  User-Agent rotated: %s", new_ua[:50] + "...")
 
     def adaptive_delay(self):
         """Apply adaptive delay between requests"""
@@ -135,8 +121,6 @@ class OptimizedDownloader:
         extra_delay = random.uniform(*extra_delay_range)
         logging.warning("  WAF block detected, backing off %.1fs...", extra_delay)
         time.sleep(extra_delay)
-        if self.total_requests % 10 == 0:  # Rotate occasionally after blocks
-            self.rotate_user_agent()
 
     def download_with_retry_urllib(
         self,
@@ -157,15 +141,10 @@ class OptimizedDownloader:
             else:
                 timeout = 15  # Longer if repeated problems
 
-        # Periodic User-Agent rotation
-        if self.total_requests % 25 == 0:
-            self.rotate_user_agent()
-
         for attempt in range(max_retries):
             self.adaptive_delay()
 
             current_timeout = timeout + (attempt * 2)  # Increase timeout on each retry
-            current_ua = self.user_agents[self.current_ua_index]
 
             # Build display URL with parameters
             if data:
@@ -184,7 +163,7 @@ class OptimizedDownloader:
             try:
                 # Use urllib exactly like the original working version
                 url_request = urllib.request.Request(
-                    url, data=data, headers={"User-Agent": current_ua}
+                    url, data=data, headers={"User-Agent": USER_AGENT}
                 )
                 json_content = urllib.request.urlopen(url_request, timeout=current_timeout).read()
 
@@ -251,10 +230,6 @@ class OptimizedDownloader:
                 timeout = 10  # Medium after 1 failure
             else:
                 timeout = 15  # Longer if repeated problems
-
-        # Periodic User-Agent rotation
-        if self.total_requests % 25 == 0:
-            self.rotate_user_agent()
 
         for attempt in range(max_retries):
             self.adaptive_delay()
