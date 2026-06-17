@@ -313,8 +313,10 @@ test_installation() {
     log_info "Testing Python imports..."
     python3 -c "
 import gracenote2epg
-import gracenote2epg.gracenote2epg_config
-import gracenote2epg.gracenote2epg_dictionaries
+import gracenote2epg.config
+import gracenote2epg.downloader
+import gracenote2epg.xmltv
+import gracenote2epg.dictionaries
 print('Core imports: OK')
 "
 
@@ -322,7 +324,7 @@ print('Core imports: OK')
     if [[ "$BASIC_TEST" == "false" ]]; then
         log_info "Testing translation system..."
         python3 -c "
-import gracenote2epg.gracenote2epg_dictionaries as gd
+import gracenote2epg.dictionaries as gd
 print('Translation manager initializing...')
 tm = gd.get_translation_manager()
 print('Available languages:', tm.get_available_languages())
