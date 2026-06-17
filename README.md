@@ -14,7 +14,7 @@ A modern Python implementation for downloading TV guide data from tvlistings.gra
 > 🆕 = new in 2.0
 
 - 📺 **XMLTV standard** - full DTD compliance for broad player/PVR compatibility
-- ⚡ **Adaptive parallel downloads** 🆕 - self-tuning concurrency that rides the server's rate-limit wall (fast, never blocked)
+- ⚡ **Adaptive parallel downloads** 🆕 - self-tuning concurrency that rides the server's rate-limit wall
 - 🎬 **Rich metadata** 🆕 - cast & crew credits, box-art icons, typed images, per-episode synopsis
 - 🌍 **Built-in geocoding** 🆕 - postal/ZIP → lineup, no `pandas`/`numpy`
 - 🧠 **Intelligent caching** - 95%+ reuse, organized into `guide/`, `series/`, `movies/`
