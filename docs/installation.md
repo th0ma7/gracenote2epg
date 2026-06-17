@@ -116,6 +116,9 @@ tv_grab_gracenote2epg --version
 ```bash
 # Prerequisites: TVheadend must already be installed from Package Center
 
+# Update to the latest version
+sudo su -s /bin/bash sc-tvheadend -c '/var/packages/tvheadend/target/env/bin/pip3 install --upgrade "gracenote2epg[full]"'
+
 # Install gracenote2epg from PyPI (recommended) in TVheadend environment
 sudo su -s /bin/bash sc-tvheadend -c '/var/packages/tvheadend/target/env/bin/pip3 install gracenote2epg[full]'
 
