@@ -11,12 +11,17 @@ A modern Python implementation for downloading TV guide data from tvlistings.gra
 
 ## 🌟 Key Features
 
-- **XMLTV Standard Compliant** - Full DTD compliance for maximum compatibility
-- **Intelligent Caching** - 95%+ cache efficiency with smart refresh strategies  
-- **Multi-language Support** - Automatic French/English/Spanish detection and translations
-- **TVheadend Integration** - Seamless channel filtering and matching
-- **Unified Cache Management** - Streamlined configuration for all retention policies
-- **Platform Agnostic** - Auto-detection for Raspberry Pi, Synology NAS, and Linux
+> 🆕 = new in 2.0
+
+- 📺 **XMLTV standard** - full DTD compliance for broad player/PVR compatibility
+- ⚡ **Adaptive parallel downloads** 🆕 - self-tuning concurrency that rides the server's rate-limit wall (fast, never blocked)
+- 🎬 **Rich metadata** 🆕 - cast & crew credits, box-art icons, typed images, per-episode synopsis
+- 🌍 **Built-in geocoding** 🆕 - postal/ZIP → lineup, no `pandas`/`numpy`
+- 🧠 **Intelligent caching** - 95%+ reuse, organized into `guide/`, `series/`, `movies/`
+- 🗣️ **Multi-language** - French/English/Spanish detection and translations
+- 📡 **TVheadend integration** - channel filtering and matching
+- ♻️ **Unified retention** - guide cache, logs, XMLTV and config backups
+- 🧩 **Platform agnostic** - Raspberry Pi, Synology NAS, and Linux
 
 ## 🚀 Installation
 
@@ -28,7 +33,7 @@ pip install gracenote2epg[full]
 pip install gracenote2epg
 
 # Alternative: Install from GitHub
-pip install "gracenote2epg[full] @ git+https://github.com/th0ma7/gracenote2epg.git@v1.6.1"
+pip install "gracenote2epg[full] @ git+https://github.com/th0ma7/gracenote2epg.git@v2.0.0-dev14"
 ```
 
 ### 📦 Development Installation
