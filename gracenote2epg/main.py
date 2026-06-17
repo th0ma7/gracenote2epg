@@ -340,30 +340,24 @@ def main():
         # Download and parse guide data
         with DataParser(cache_manager, tvh_client) as data_parser:
             # Download and parse guide blocks
-            guide_success = data_parser.download_and_parse_guide(
+            # download_and_parse_guide already warns on issues (no duplicate here).
+            data_parser.download_and_parse_guide(
                 grid_time_start=grid_time_start,
                 day_hours=day_hours,
                 config_manager=config_manager,
                 refresh_hours=refresh_hours,
             )
 
-            if not guide_success:
-                logging.warning("Guide download had issues, but continuing with available data")
-
             # Clean show cache now that we have parsed episodes
             active_series = data_parser.get_active_series_list()
             cache_manager.perform_show_cleanup(active_series)
 
-            # Download extended details if needed
+            # Download extended details if needed (the method warns on issues).
             if config_manager.needs_extended_download():
-                extended_success = data_parser.download_and_parse_series_details(
+                data_parser.download_and_parse_series_details(
                     workers=config_manager.get_download_workers(),
                     threshold=config_manager.get_download_threshold(),
                 )
-                if not extended_success:
-                    logging.warning(
-                        "Extended details download had issues, using basic descriptions"
-                    )
 
             # Generate XMLTV
             xmltv_generator = XmltvGenerator(

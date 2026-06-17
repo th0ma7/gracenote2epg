@@ -5,7 +5,7 @@ All notable changes to gracenote2epg are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0-dev16] - 2026-06-17
+## [2.0.0] - 2026-06-17
 
 Major maintainability refactor: the monolithic modules were split into focused
 packages (`config/`, `args/`, `parser/`, `downloader/`, `xmltv/`, `logrotate/`)
@@ -91,9 +91,10 @@ with no change to the generated guide.
   loaded from` lines (both already shown in the startup `Locations` block), the
   raw guide-start epoch, repeated per-airing `TBA` notices and the startup
   log-rotation analysis moved to `DEBUG`; guide, series-details and
-  XMLTV-generation progress now log every 20% (instead of every 5%); and the
+  XMLTV-generation progress now log every 20% (instead of every 5%); the
   language summary is labelled `detections` (title+description lookups) rather
-  than `episodes`.
+  than `episodes`; and the guide/extended-details "had issues" warning is no
+  longer logged twice.
 - **Faster startup log-rotation check**: instead of reading the whole log on
   every run, the catch-up check first reads just the first line — if the log is
   already within the current rotation period there is nothing to rotate and the
