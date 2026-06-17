@@ -4,7 +4,7 @@ import threading
 import unittest
 
 from gracenote2epg.downloader.pacing import RateController
-from gracenote2epg.downloader.worker_pool import PacedWorkerPool
+from gracenote2epg.downloader.worker_pool import PacedWorkerPool, log_progress
 from gracenote2epg.downloader.tasks import DownloadResult, DownloadTask
 
 
@@ -293,6 +293,21 @@ class OnResultTests(unittest.TestCase):
         )
         pool.run(tasks(30))
         self.assertEqual(sorted(seen, key=int), [str(i) for i in range(30)])
+
+
+class LogProgressTests(unittest.TestCase):
+    def _logged_counts(self, total, step=5):
+        with self.assertLogs(level="INFO") as cm:
+            for done in range(1, total + 1):
+                log_progress("X", done, total, step=step)
+        return sorted({int(r.split("X: ")[1].split("/")[0]) for r in cm.output if "X: " in r})
+
+    def test_logs_first_last_and_every_20_percent(self):
+        # total=10, step=5 -> every 2; plus the first (1) and last (10).
+        self.assertEqual(self._logged_counts(10), [1, 2, 4, 6, 8, 10])
+
+    def test_small_total_still_logs_first_and_last(self):
+        self.assertEqual(self._logged_counts(3), [1, 2, 3])
 
 
 if __name__ == "__main__":

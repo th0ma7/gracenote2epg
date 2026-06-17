@@ -98,7 +98,7 @@ class GuideDownloader(DownloaderStatsMixin):
         """Fetch the blocks that need it concurrently (keep-alive worker pool)."""
         from .http import make_session, execute
         from .tasks import DownloadTask
-        from .worker_pool import PacedWorkerPool
+        from .worker_pool import PacedWorkerPool, log_progress
 
         # Decide per block: cached / fetch / missing (no network here).
         to_fetch = []  # (filename, was_existing)
@@ -153,6 +153,7 @@ class GuideDownloader(DownloaderStatsMixin):
                     note = " [failed]"
                 idx = self.downloaded_count + self.cached_count + self.failed_count
             logging.debug("  Guide block: %s (%d/%d)%s", result.task_id, idx, total, note)
+            log_progress("Guide blocks", idx, total)
 
         pool = PacedWorkerPool(
             execute, workers=workers, session_factory=make_session, on_result=on_result

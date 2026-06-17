@@ -5,7 +5,7 @@ All notable changes to gracenote2epg are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0-dev14] - 2026-06-17
+## [2.0.0-dev15] - 2026-06-17
 
 Major maintainability refactor: the monolithic modules were split into focused
 packages (`config/`, `args/`, `parser/`, `downloader/`, `xmltv/`, `logrotate/`)
@@ -83,6 +83,11 @@ with no change to the generated guide.
 - **`--basedir`**: now honoured for the config, cache, log and XMLTV locations.
 
 ### Changed
+- **Cleaner run logs**: the redundant `Caching directory` line, the raw guide-start
+  epoch, repeated per-airing `TBA` notices and the startup log-rotation analysis
+  moved to `DEBUG`; guide, series-details and XMLTV-generation progress now log
+  every 20% (instead of every 5%); and the language summary is labelled
+  `detections` (title+description lookups) rather than `episodes`.
 - **Single User-Agent everywhere**: the sequential engine's 5-entry User-Agent
   rotation is removed — both download paths now use the one stable browser-like
   UA already used by the parallel pool. Rotation was unnecessary (a single UA

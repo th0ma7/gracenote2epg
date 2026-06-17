@@ -199,18 +199,17 @@ class CopyTruncateTimedRotatingFileHandler(logging.handlers.BaseRotatingHandler)
             complete_periods = [p for p, data in periods_data.items() if data["complete"]]
             current_periods = [p for p, data in periods_data.items() if not data["complete"]]
 
-            logging.info("Log analysis complete (%s rotation):", self.period_name)
-            logging.info(
-                "  Complete %ss found: %d (%s)",
+            logging.debug("Log analysis complete (%s rotation):", self.period_name)
+            logging.debug(
+                "  Complete %s periods found: %d (%s)",
                 self.period_name,
                 len(complete_periods),
-                ", ".join(complete_periods),
+                ", ".join(complete_periods) if complete_periods else "none",
             )
-            logging.info(
-                "  Current %s: %s (%s)",
+            logging.debug(
+                "  Current %s period: %s (stays in the current log)",
                 self.period_name,
                 ", ".join(current_periods) if current_periods else "none",
-                "will remain in current log",
             )
 
             return periods_data

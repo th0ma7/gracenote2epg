@@ -43,6 +43,15 @@ ProgressFn = Callable[[int, int], None]
 ResultFn = Callable[[DownloadResult], None]
 
 
+def log_progress(label: str, done: int, total: int, step: int = 5) -> None:
+    """Log an INFO progress line at the first, last, and every 1/step item.
+
+    ``step=5`` -> every 20%. Shared by the guide and series downloaders.
+    """
+    if done == 1 or done == total or done % max(1, total // step) == 0:
+        logging.info("  %s: %d/%d", label, done, total)
+
+
 class PacedWorkerPool:
     """Run download tasks across a fixed pool of keep-alive workers."""
 
