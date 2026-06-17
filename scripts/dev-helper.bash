@@ -140,11 +140,8 @@ cmd_lint() {
         pip install flake8
     fi
 
-    # Use explicit configuration to ensure it's applied
-    flake8 gracenote2epg/ tests/ scripts/build-geodata.py tv_grab_gracenote2epg setup.py \
-        --max-line-length=100 \
-        --extend-ignore=E203,W503,F541,E501,F401,F841,E722,W293 \
-        --exclude=build,dist,*.egg-info,__pycache__,.git,.tox
+    # Configuration comes from .flake8 (single source of truth)
+    flake8 gracenote2epg/ tests/ scripts/build-geodata.py tv_grab_gracenote2epg setup.py
 
     log_success "Linting completed"
 }

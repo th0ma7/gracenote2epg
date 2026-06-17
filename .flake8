@@ -1,9 +1,12 @@
 # .flake8
 [flake8]
 max-line-length = 100
-extend-ignore = 
-    E203, W503, F541, F401, F841, E722, W293,
-    E501, E231, E302, E305,
-    BLK100
-exclude = 
+# Keep only the black-compatibility ignores (E203, W503) plus E501: black already
+# wraps code at 100, and E501 would otherwise only nag about long strings / log
+# messages / URLs that black won't break. Everything else is enforced —
+# unused imports/variables (F401/F841), bare excepts (E722), placeholder-less
+# f-strings (F541), and spacing (E2xx/E3xx/W2xx).
+extend-ignore =
+    E203, W503, E501
+exclude =
     build, dist, *.egg-info, __pycache__, .git, .tox
