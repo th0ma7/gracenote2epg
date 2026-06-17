@@ -272,8 +272,8 @@ def main():
         # Log command line processing BEFORE config summary
         log_command_line_processing(args)
 
-        # Log configuration summary
-        logging.info("Configuration loaded from: %s", config_file)
+        # Log configuration summary (the path is already shown in the Locations block)
+        logging.debug("Configuration loaded from: %s", config_file)
         config_manager.log_config_summary()
 
         # Initialize components with new architecture

@@ -5,7 +5,7 @@ All notable changes to gracenote2epg are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0-dev15] - 2026-06-17
+## [2.0.0-dev16] - 2026-06-17
 
 Major maintainability refactor: the monolithic modules were split into focused
 packages (`config/`, `args/`, `parser/`, `downloader/`, `xmltv/`, `logrotate/`)
@@ -56,6 +56,10 @@ with no change to the generated guide.
   schema → 8.
 
 ### Fixed
+- **Guide download progress count**: the progress line showed an impossible
+  ratio like `Guide blocks: 96/18` (the running total of *all* blocks against the
+  *fetched* count). It now counts only the blocks actually being downloaded, e.g.
+  `Guide blocks: 4/18`.
 - **Never overwrite a good guide with an empty one**: if the guide download
   returns no programmes at all (e.g. the server rate-limits every block), the
   run now keeps the existing `xmltv.xml` and exits with an error instead of
@@ -83,11 +87,17 @@ with no change to the generated guide.
 - **`--basedir`**: now honoured for the config, cache, log and XMLTV locations.
 
 ### Changed
-- **Cleaner run logs**: the redundant `Caching directory` line, the raw guide-start
-  epoch, repeated per-airing `TBA` notices and the startup log-rotation analysis
-  moved to `DEBUG`; guide, series-details and XMLTV-generation progress now log
-  every 20% (instead of every 5%); and the language summary is labelled
-  `detections` (title+description lookups) rather than `episodes`.
+- **Cleaner run logs**: the redundant `Caching directory` and `Configuration
+  loaded from` lines (both already shown in the startup `Locations` block), the
+  raw guide-start epoch, repeated per-airing `TBA` notices and the startup
+  log-rotation analysis moved to `DEBUG`; guide, series-details and
+  XMLTV-generation progress now log every 20% (instead of every 5%); and the
+  language summary is labelled `detections` (title+description lookups) rather
+  than `episodes`.
+- **Faster startup log-rotation check**: instead of reading the whole log on
+  every run, the catch-up check first reads just the first line — if the log is
+  already within the current rotation period there is nothing to rotate and the
+  full scan is skipped entirely (a big speedup with large DEBUG logs).
 - **Single User-Agent everywhere**: the sequential engine's 5-entry User-Agent
   rotation is removed — both download paths now use the one stable browser-like
   UA already used by the parallel pool. Rotation was unnecessary (a single UA

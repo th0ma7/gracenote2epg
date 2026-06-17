@@ -99,7 +99,23 @@ class CopyTruncateTimedRotatingFileHandler(logging.handlers.BaseRotatingHandler)
             return
 
         try:
-            # Analyze log file and group entries by periods (daily/weekly/monthly)
+            # Fast path: if the log's first entry already belongs to the current
+            # period, the whole file is within it and there is nothing to rotate.
+            # This reads only the first line instead of scanning the entire
+            # (possibly huge) log on every startup.
+            first_dt = self._first_entry_datetime(log_file)
+            if first_dt is not None:
+                first_suffix = self._get_period_info(first_dt)[2]
+                current_suffix = self._get_period_info(datetime.now())[2]
+                if first_suffix == current_suffix:
+                    logging.debug(
+                        "Log is within the current %s period (%s) - no rotation needed",
+                        self.period_name,
+                        current_suffix,
+                    )
+                    return
+
+            # A previous period exists -> full analysis + rotation (reads the file).
             periods_data = self._analyze_log_periods(log_file)
             if periods_data:
                 self._perform_multi_period_rotation(periods_data)
@@ -108,6 +124,26 @@ class CopyTruncateTimedRotatingFileHandler(logging.handlers.BaseRotatingHandler)
 
         except Exception as e:
             logging.warning("Error during startup rotation check: %s", str(e))
+
+    @staticmethod
+    def _first_entry_datetime(log_file: Path) -> Optional[datetime]:
+        """Timestamp of the first log entry, reading only the first lines (cheap).
+
+        Avoids loading the whole file just to decide whether rotation is due.
+        Skips leading separator/blank lines; returns None if no entry is found.
+        """
+        try:
+            with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
+                for _ in range(50):  # the first real entry is near the top
+                    line = f.readline()
+                    if not line:
+                        break
+                    match = re.match(r"^(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})", line)
+                    if match:
+                        return datetime.strptime(match.group(1), "%Y/%m/%d %H:%M:%S")
+        except OSError:
+            pass
+        return None
 
     def _analyze_log_periods(self, log_file: Path) -> Dict[str, Dict]:
         """
