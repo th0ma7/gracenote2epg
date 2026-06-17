@@ -244,9 +244,9 @@ def main():
             file_handler, "_check_startup_rotation"
         ):
             try:
-                logging.info("Checking for startup log rotation...")
+                logging.debug("Checking for startup log rotation...")
                 file_handler._check_startup_rotation()
-                logging.info("Startup rotation check completed")
+                logging.debug("Startup rotation check completed")
             except Exception as e:
                 logging.warning("Error during startup rotation check: %s", str(e))
 
@@ -315,13 +315,11 @@ def main():
         logging.info("TV Guide duration: %s days", days)
 
         if offset > 1:
-            logging.info("TV Guide Start: %i [offset: %i days]", grid_time_start, int(offset))
+            logging.debug("TV Guide Start: %i [offset: %i days]", grid_time_start, int(offset))
         elif offset == 1:
-            logging.info("TV Guide Start: %i [offset: %i day]", grid_time_start, int(offset))
+            logging.debug("TV Guide Start: %i [offset: %i day]", grid_time_start, int(offset))
         else:
-            logging.info("TV Guide Start: %i", grid_time_start)
-
-        logging.info("Caching directory: %s", defaults["cache_dir"])
+            logging.debug("TV Guide Start: %i", grid_time_start)
 
         # Log cache refresh configuration
         if refresh_hours == 0:

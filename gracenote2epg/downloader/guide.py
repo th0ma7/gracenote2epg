@@ -153,6 +153,8 @@ class GuideDownloader(DownloaderStatsMixin):
                     note = " [failed]"
                 idx = self.downloaded_count + self.cached_count + self.failed_count
             logging.debug("  Guide block: %s (%d/%d)%s", result.task_id, idx, total, note)
+            if idx == 1 or idx % max(1, total // 5) == 0 or idx == total:
+                logging.info("  Guide blocks: %d/%d", idx, total)
 
         pool = PacedWorkerPool(
             execute, workers=workers, session_factory=make_session, on_result=on_result

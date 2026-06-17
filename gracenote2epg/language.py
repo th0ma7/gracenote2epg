@@ -389,7 +389,7 @@ class LanguageDetector:
                 for lang, count in self.language_stats.items():
                     percentage = (count / total_episodes) * 100
                     lang_name = {"fr": "French", "en": "English", "es": "Spanish"}[lang]
-                    logging.info("  %s: %d episodes (%.1f%%)", lang_name, count, percentage)
+                    logging.info("  %s: %d detections (%.1f%%)", lang_name, count, percentage)
 
                 # Cache performance statistics
                 cache_stats = self.get_cache_stats()

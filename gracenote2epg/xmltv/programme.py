@@ -47,7 +47,7 @@ class ProgrammeMixin:
             # Progress tracking variables
             processed_episodes = 0
             last_progress_log = 0
-            progress_interval = max(1, total_episodes // 20)  # Log every 5% (20 intervals)
+            progress_interval = max(1, total_episodes // 5)  # Log every 20% (5 intervals)
 
             for station_id, station_data in schedule.items():
                 for episode_key, episode_data in station_data.items():
@@ -62,7 +62,7 @@ class ProgrammeMixin:
 
                         # Log progress
                         if (
-                            processed_episodes - last_progress_log >= min(progress_interval, 1000)
+                            processed_episodes - last_progress_log >= progress_interval
                             or processed_episodes == total_episodes
                         ):
                             progress_percent = (

@@ -143,7 +143,7 @@ class SeriesDownloader(DownloaderStatsMixin):
                 total,
                 "" if saved else " [failed]",
             )
-            if idx == 1 or idx % max(1, total // 10) == 0 or idx == total:
+            if idx == 1 or idx % max(1, total // 5) == 0 or idx == total:
                 logging.info("  Extended details: %d/%d", idx, total)
 
         tasks = [

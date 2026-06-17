@@ -181,7 +181,7 @@ class SeriesParser:
         try:
             episode_title = airing.get("episodeTitle", "")
             if episode_title and "TBA" in episode_title:
-                logging.info("Found TBA listing in series %s: %s", series_id, episode_title)
+                logging.debug("Found TBA listing in series %s: %s", series_id, episode_title)
         except Exception:
             pass
 
