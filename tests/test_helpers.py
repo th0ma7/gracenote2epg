@@ -1,6 +1,5 @@
 """Unit tests for the pure helpers in gracenote2epg.utils."""
 
-import re
 import unittest
 from unittest import mock
 

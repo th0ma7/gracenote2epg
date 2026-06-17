@@ -35,7 +35,15 @@ BASE_URL = "https://download.geonames.org/export/zip/{}.zip"
 OUT = Path(__file__).resolve().parent.parent / "gracenote2epg" / "data" / "geopostal.csv.gz"
 
 # Output columns (names match the fields the geocoder reads, mirroring pgeocode)
-HEADER = ["country", "postal", "place_name", "state_code", "state_name", "county_name", "community_name"]
+HEADER = [
+    "country",
+    "postal",
+    "place_name",
+    "state_code",
+    "state_name",
+    "county_name",
+    "community_name",
+]
 
 
 def fetch_country(country: str):
@@ -57,7 +65,9 @@ def fetch_country(country: str):
         if key in seen:  # keep first occurrence per (country, postal)
             continue
         seen.add(key)
-        rows.append([country_code, postal, place, admin1_code, admin1_name, admin2_name, admin3_name])
+        rows.append(
+            [country_code, postal, place, admin1_code, admin1_name, admin2_name, admin3_name]
+        )
     print(f"  {country}: {len(rows)} unique postal codes")
     return rows
 
