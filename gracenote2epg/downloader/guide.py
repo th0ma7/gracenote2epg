@@ -130,11 +130,13 @@ class GuideDownloader(DownloaderStatsMixin):
         import threading
 
         existed_map = dict(to_fetch)
-        total = len(tasks)
+        total = len(tasks)  # blocks actually being fetched (cached ones aren't here)
         tally_lock = threading.Lock()
+        fetched = 0  # progress is over the fetched blocks, not the whole guide
 
         def on_result(result) -> None:
             # Runs as each block finalises (save-as-you-go).
+            nonlocal fetched
             saved = False
             if result.success and result.content:
                 saved = self.cache_manager.validate_and_save_guide_block(
@@ -151,7 +153,8 @@ class GuideDownloader(DownloaderStatsMixin):
                 else:
                     self.failed_count += 1
                     note = " [failed]"
-                idx = self.downloaded_count + self.cached_count + self.failed_count
+                fetched += 1
+                idx = fetched
             logging.debug("  Guide block: %s (%d/%d)%s", result.task_id, idx, total, note)
             log_progress("Guide blocks", idx, total)
 

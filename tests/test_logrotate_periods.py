@@ -1,9 +1,12 @@
 """Unit tests for the pure period math extracted into logrotate.periods."""
 
+import tempfile
 import unittest
 from datetime import datetime
+from pathlib import Path
 
 from gracenote2epg.logrotate import periods
+from gracenote2epg.logrotate.handler import CopyTruncateTimedRotatingFileHandler as Handler
 
 
 class WeekStartTests(unittest.TestCase):
@@ -66,6 +69,28 @@ class NextRolloverTests(unittest.TestCase):
         before = time.time()
         nr = periods.next_rollover_at("HOURLY", 3600)
         self.assertGreaterEqual(nr, before + 3600 - 1)
+
+
+class FirstEntryDatetimeTests(unittest.TestCase):
+    """The cheap first-line read used to skip the full scan when nothing rotates."""
+
+    def _write(self, text):
+        p = Path(tempfile.mkdtemp()) / "gracenote2epg.log"
+        p.write_text(text)
+        return p
+
+    def test_reads_first_timestamp_skipping_separators(self):
+        p = self._write(
+            "============\n\n2026/06/16 20:54:19 INFO  started\n2026/06/17 01:00:00 INFO later\n"
+        )
+        self.assertEqual(Handler._first_entry_datetime(p), datetime(2026, 6, 16, 20, 54, 19))
+
+    def test_none_when_no_timestamped_line(self):
+        p = self._write("just a banner\nno timestamps here\n")
+        self.assertIsNone(Handler._first_entry_datetime(p))
+
+    def test_none_when_file_missing(self):
+        self.assertIsNone(Handler._first_entry_datetime(Path("/no/such/file.log")))
 
 
 if __name__ == "__main__":
