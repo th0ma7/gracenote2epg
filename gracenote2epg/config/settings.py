@@ -8,7 +8,7 @@ and clean XML generation for gracenote2epg configurations.
 import logging
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 
 class SettingsManager:
@@ -129,7 +129,7 @@ class SettingsManager:
         with open(config_file, "w", encoding="utf-8") as f:
             f.write(self.DEFAULT_CONFIG)
 
-    def parse_config_file(self, config_file: Path) -> tuple[Dict[str, Any], List[str], str]:
+    def parse_config_file(self, config_file: Path) -> Tuple[Dict[str, Any], List[str], str]:
         """
         Parse XML configuration file
 
