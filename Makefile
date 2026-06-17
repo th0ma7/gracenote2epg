@@ -3,99 +3,81 @@
 
 .PHONY: help clean autofix format lint test-unit tests test-one golden-update test test-basic test-full geodata build install-dev check-deps show-dist all
 
-# Default target
-help:
+# Default target. The target list below is generated from the `## ` comment on
+# each target, so it can never drift out of sync — just add a `## description`
+# when you add a target.
+help:  ## Show this help message
 	@echo "gracenote2epg development Makefile"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  help         Show this help message"
-	@echo "  clean        Clean all build artifacts and caches"
-	@echo "  autofix      Auto-fix imports and common issues with autoflake"
-	@echo "  format       Format code with black"
-	@echo "  lint         Run linting with flake8"
-	@echo "  test-unit    Run unit tests (stdlib unittest, no extra deps)"
-	@echo "  tests        Alias for test-unit"
-	@echo "  test-one     Run one test module: make test-one T=test_worker_pool"
-	@echo "  golden-update Regenerate the XMLTV golden file (after an intended format change)"
-	@echo "  test-basic   Basic functionality test"
-	@echo "  test-full    Full distribution test"
-	@echo "  test         Alias for test-full"
-	@echo "  geodata      Regenerate the bundled postal dataset (run before a release, then commit)"
-	@echo "  build        Build distributions (wheel and source)"
-	@echo "  install-dev  Install in development mode"
-	@echo "  check-deps   Check and install development dependencies"
-	@echo "  show-dist    Show current distribution files"
-	@echo "  all          Run clean, autofix, format, lint, and test-full"
+	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
+		| awk 'BEGIN {FS = ":.*?## "} {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Examples:"
 	@echo "  make clean && make test-basic    # Quick development cycle"
 	@echo "  make autofix format lint         # Code quality pipeline"
+	@echo "  make test-one T=test_worker_pool # Run a single test module"
 	@echo "  make all                         # Complete validation"
-	@echo "  make build && make show-dist     # Build and inspect"
 
 # Development workflow
-clean:
+clean:  ## Clean all build artifacts and caches
 	@chmod +x scripts/dev-helper.bash
 	@./scripts/dev-helper.bash clean
 
-autofix:
+autofix:  ## Auto-fix imports and common issues with autoflake
 	@chmod +x scripts/dev-helper.bash
 	@./scripts/dev-helper.bash autofix
 
-format:
+format:  ## Format code with black
 	@chmod +x scripts/dev-helper.bash
 	@./scripts/dev-helper.bash format
 
-lint:
+lint:  ## Run linting with flake8
 	@chmod +x scripts/dev-helper.bash
 	@./scripts/dev-helper.bash lint
 
-test-unit:
+test-unit:  ## Run unit tests (stdlib unittest, no extra deps)
 	@python3 -m unittest discover -s tests -p "test_*.py" -v
 
-# Alias — `make tests` runs the full stdlib unittest suite.
-tests: test-unit
+tests: test-unit  ## Alias for test-unit
 
-# Run a single test module, e.g. `make test-one T=test_worker_pool`
-# (T may also be a class or method path, e.g. test_worker_pool.WallHandlingTests).
-test-one:
+# T may be a module, class, or method path,
+# e.g. T=test_worker_pool.WallHandlingTests
+test-one:  ## Run one test module: make test-one T=test_worker_pool
 	@python3 -m unittest -v tests.$(T)
 
-# Regenerate the XMLTV golden file after an INTENTIONAL change to the generator's
-# output format; review the diff before committing.
-golden-update:
+golden-update:  ## Regenerate the XMLTV golden file (after an intended format change)
 	@python3 -m tests.test_xmltv_golden --update-golden
 	@echo "Golden regenerated → review 'git diff tests/fixtures/xmltv_golden.xml' before committing."
 
-test-basic:
+test-basic:  ## Basic functionality test
 	@chmod +x scripts/test-distribution.bash
 	@./scripts/test-distribution.bash --basic
 
-test-full:
+test-full:  ## Full distribution test
 	@chmod +x scripts/test-distribution.bash
 	@./scripts/test-distribution.bash --full
 
-test: test-full
+test: test-full  ## Alias for test-full
 
-geodata:
+geodata:  ## Regenerate the bundled postal dataset (run before a release, then commit)
 	@python3 scripts/build-geodata.py
 	@echo "Now review and commit gracenote2epg/data/geopostal.csv.gz"
 
-build:
+build:  ## Build distributions (wheel and source)
 	@python3 -m build
 
-install-dev:
+install-dev:  ## Install in development mode
 	@chmod +x scripts/dev-helper.bash
 	@./scripts/dev-helper.bash install-dev
 
-check-deps:
+check-deps:  ## Check and install development dependencies
 	@chmod +x scripts/dev-helper.bash
 	@./scripts/dev-helper.bash check-deps
 
-show-dist:
+show-dist:  ## Show current distribution files
 	@chmod +x scripts/dev-helper.bash
 	@./scripts/dev-helper.bash show-dist
 
-# Complete workflow with auto-fixes
-all: clean autofix format lint test-unit test-full
+all: clean autofix format lint test-unit test-full  ## Run clean, autofix, format, lint, and all tests
 	@echo "✅ All development tasks completed successfully!"
