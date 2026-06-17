@@ -190,7 +190,6 @@ class ConfigDisplayer:
         print()
 
         print("🔧 RECOMMENDED CONFIGURATION:")
-        country_full = "Canada" if country == "CAN" else "United States"
         print("   <!-- Simplified configuration (auto-detection) -->")
         print(f'   <setting id="zipcode">{clean_postal}</setting>')
         print('   <setting id="lineupid">auto</setting>')

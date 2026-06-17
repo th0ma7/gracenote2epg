@@ -1,8 +1,0 @@
-./tv_imagecache_audit.py
- --->> indiquer si la cache est active ou pas
- --->> rendre l'installation optionnelle
-
-download throttling:
- --->> état où si cache désactivée (et même nettoyée!) on reste en mode http: 192.168.80.89: HTTP/1.1 HEAD (2) /imagecache/1054 -- 404
-
-TVH: corriger le problème avec le rating XMLTV

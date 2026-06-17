@@ -94,8 +94,8 @@ cmd_autofix() {
 
     # Remove unused imports and variables
     log_info "Removing unused imports and variables..."
-    autoflake --remove-all-unused-imports --remove-unused-variables --in-place --recursive gracenote2epg/
-    autoflake --remove-all-unused-imports --remove-unused-variables --in-place tv_grab_gracenote2epg
+    autoflake --remove-all-unused-imports --remove-unused-variables --in-place --recursive gracenote2epg/ tests/
+    autoflake --remove-all-unused-imports --remove-unused-variables --in-place tv_grab_gracenote2epg scripts/build-geodata.py
 
     # Fix specific issues (safe fixes only)
     log_info "Fixing specific code issues..."
@@ -121,12 +121,12 @@ cmd_format() {
     fi
 
     # Use same line length as flake8 configuration
-    black --line-length 100 gracenote2epg/ tv_grab_gracenote2epg setup.py
+    black --line-length 100 gracenote2epg/ tests/ scripts/build-geodata.py tv_grab_gracenote2epg setup.py
 
     # Verify black made all necessary changes
-    if ! black --check --line-length 100 gracenote2epg/ tv_grab_gracenote2epg setup.py; then
+    if ! black --check --line-length 100 gracenote2epg/ tests/ scripts/build-geodata.py tv_grab_gracenote2epg setup.py; then
         log_warning "Running black again to ensure all changes are applied..."
-        black --line-length 100 gracenote2epg/ tv_grab_gracenote2epg setup.py
+        black --line-length 100 gracenote2epg/ tests/ scripts/build-geodata.py tv_grab_gracenote2epg setup.py
     fi
 
     log_success "Code formatting completed"
@@ -140,11 +140,8 @@ cmd_lint() {
         pip install flake8
     fi
 
-    # Use explicit configuration to ensure it's applied
-    flake8 gracenote2epg/ tv_grab_gracenote2epg \
-        --max-line-length=100 \
-        --extend-ignore=E203,W503,F541,E501,F401,F841,E722,W293 \
-        --exclude=build,dist,*.egg-info,__pycache__,.git,.tox
+    # Configuration comes from .flake8 (single source of truth)
+    flake8 gracenote2epg/ tests/ scripts/build-geodata.py tv_grab_gracenote2epg setup.py
 
     log_success "Linting completed"
 }

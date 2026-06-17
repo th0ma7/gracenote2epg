@@ -7,3 +7,6 @@ tests/baseline/
 
 # Local debug logs (never commit)
 debug/
+
+# Personal local notes (not part of the repo)
+TODO
