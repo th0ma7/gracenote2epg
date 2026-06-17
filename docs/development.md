@@ -288,17 +288,21 @@ make clean autofix format lint test-basic
 ### Unit Tests
 
 The suite under `tests/` uses the standard-library `unittest`, so it runs with
-no extra dependencies:
+no extra dependencies. See **[unittesting.md](unittesting.md)** for a per-module
+breakdown of what each test file covers.
 
 ```bash
 # Run the whole suite (no install needed)
-make test-unit
-# or directly
-python3 -m unittest discover -s tests -p "test_*.py" -v
-
+make tests              # alias for: make test-unit
 # Run a single module / case
+make test-one T=test_helpers
+make test-one T=test_helpers.TimezoneOffsetTests
+# Regenerate the XMLTV golden file after an intended format change
+make golden-update
+
+# Or directly, without the Makefile
+python3 -m unittest discover -s tests -p "test_*.py" -v
 python3 -m unittest tests.test_helpers
-python3 -m unittest tests.test_helpers.TimezoneOffsetTests
 
 # Optional: run via pytest if installed (it picks up unittest tests as-is)
 pytest tests/

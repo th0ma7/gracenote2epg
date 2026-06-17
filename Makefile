@@ -1,7 +1,7 @@
 # Makefile for gracenote2epg development
 # Provides convenient shortcuts for common development tasks
 
-.PHONY: help clean autofix format lint test-unit test test-basic test-full geodata build install-dev check-deps show-dist all
+.PHONY: help clean autofix format lint test-unit tests test-one golden-update test test-basic test-full geodata build install-dev check-deps show-dist all
 
 # Default target
 help:
@@ -14,6 +14,9 @@ help:
 	@echo "  format       Format code with black"
 	@echo "  lint         Run linting with flake8"
 	@echo "  test-unit    Run unit tests (stdlib unittest, no extra deps)"
+	@echo "  tests        Alias for test-unit"
+	@echo "  test-one     Run one test module: make test-one T=test_worker_pool"
+	@echo "  golden-update Regenerate the XMLTV golden file (after an intended format change)"
 	@echo "  test-basic   Basic functionality test"
 	@echo "  test-full    Full distribution test"
 	@echo "  test         Alias for test-full"
@@ -49,6 +52,20 @@ lint:
 
 test-unit:
 	@python3 -m unittest discover -s tests -p "test_*.py" -v
+
+# Alias — `make tests` runs the full stdlib unittest suite.
+tests: test-unit
+
+# Run a single test module, e.g. `make test-one T=test_worker_pool`
+# (T may also be a class or method path, e.g. test_worker_pool.WallHandlingTests).
+test-one:
+	@python3 -m unittest -v tests.$(T)
+
+# Regenerate the XMLTV golden file after an INTENTIONAL change to the generator's
+# output format; review the diff before committing.
+golden-update:
+	@python3 -m tests.test_xmltv_golden --update-golden
+	@echo "Golden regenerated → review 'git diff tests/fixtures/xmltv_golden.xml' before committing."
 
 test-basic:
 	@chmod +x scripts/test-distribution.bash
