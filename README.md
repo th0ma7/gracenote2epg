@@ -50,7 +50,7 @@ pip install -e .[dev]
 
 ## 📋 System Requirements
 
-- **Python**: 3.7 or higher
+- **Python**: 3.8 or higher
 - **Required**: `requests>=2.25.0`
 - **Optional**: `langdetect>=1.0.9` (language detection), `polib>=1.1.0` (translations)
 
